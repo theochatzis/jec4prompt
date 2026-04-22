@@ -18,7 +18,7 @@ void L2L3Res() {
   // Load input file
   int run = 398801;
   //TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
-  TFile *f = new TFile("rootfiles/J4PHists_runs398801to398801_photonjet.root","READ");
+  TFile *f = new TFile("/eos/user/j/jecpcl/public/jec4prompt/runs/Run2025C/run392175/photonjet/J4PHists_runs392175to392175_photonjet.root","READ");
   
   assert(f && !f->IsZombie());
   TFile *fm = new TFile("rootfiles/reweighted_J4PHists_photonjet_GJ-4Jets.root","READ");
