@@ -16,13 +16,16 @@ void L2L3Res() {
   TDirectory *curdir = gDirectory;
   
   // Load input file
-  int run = 392175;
-  TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
+  int run = 398801;
+  //TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
+  TFile *f = new TFile("rootfiles/J4PHists_runs398801to398801_photonjet.root","READ");
+  
   assert(f && !f->IsZombie());
-  //TFile *fm = new TFile("rootfiles/J4PHists_photonjet_GJ-4Jets_Bin-HT-40to100-PTG-10to100.root","READ");
-  //TFile *fm = new TFile("rootfiles/J4PHists_photonjet_GJ-4Jets_Bin-HT-40to400-PTG-10to200-merged.root","READ");
-  TFile *fm = new TFile("../jecsys3/rootfiles/Prompt2024/Gam_w73/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
+  TFile *fm = new TFile("rootfiles/reweighted_J4PHists_photonjet_GJ-4Jets.root","READ");
+  TFile *fmOffline = new TFile("rootfiles/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
+  //TFile *fm = new TFile("../jecsys3/rootfiles/Prompt2024/Gam_w73/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
   assert(fm && !fm->IsZombie());
+  assert(fmOffline && !fmOffline->IsZombie());
   
   curdir->cd();
 
@@ -36,9 +39,9 @@ void L2L3Res() {
   
   // Load input data (MPF, DB) from file
   TProfile2D *p2m0 = (TProfile2D*)f->Get("DB_2D"); assert(p2m0);
-  //TProfile2D *p2m0m = (TProfile2D*)fm->Get("DB_2D"); assert(p2m0m);
-  TProfile2D *p2m0m = (TProfile2D*)fm->Get("Gamjet2/p2m2"); assert(p2m0m);
-  TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
+  TProfile2D *p2m0m = (TProfile2D*)fm->Get("DB_2D"); assert(p2m0m);
+  TProfile2D *p2m0mOffline = (TProfile2D*)fmOffline->Get("Gamjet2/p2m2"); assert(p2m0mOffline);
+  //TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
 
   // Initial fit at |eta|<1.305 needed for scaling dijet data to L2L3Res level
   int i1 = p2m0->GetXaxis()->FindBin(-1.305);
@@ -51,6 +54,11 @@ void L2L3Res() {
   double eta1m = p2m0m->GetXaxis()->GetBinLowEdge(i1m);
   double eta2m = p2m0m->GetXaxis()->GetBinLowEdge(i2m)+1;
 
+  int i1mOffline = p2m0mOffline->GetXaxis()->FindBin(-1.305);
+  int i2mOffline = p2m0mOffline->GetXaxis()->FindBin(+1.305)-1;
+  double eta1mOffline = p2m0mOffline->GetXaxis()->GetBinLowEdge(i1m);
+  double eta2mOffline = p2m0mOffline->GetXaxis()->GetBinLowEdge(i2m)+1;
+
   cout << Form("Fitting %1.3f #LT eta < %1.3f reference region\n",eta1,eta2);
   TProfile *p1m0 = p2m0->ProfileY("p1m0",i1,i2);
   TProfile *p1m0_rebin = (TProfile*)p1m0->Rebin(n13,"p1m0_rebinned",v13);
@@ -59,23 +67,30 @@ void L2L3Res() {
   h1m0_cut->GetXaxis()->SetRangeUser(40,300);
 
   TProfile *p1m0m = p2m0m->ProfileY("p1m0m",i1m,i2m);
-  //TProfile *p1m0m_rebin = (TProfile*)p1m0m->Rebin(n13,"p1m0m_rebinned",v13);
-  TProfile *p1m0m_rebin = (TProfile*)p1m0m->Clone("p1m0m_rebinned");
+  TProfile *p1m0m_rebin = (TProfile*)p1m0m->Rebin(n13,"p1m0m_rebinned",v13);
+  //TProfile *p1m0m_rebin = (TProfile*)p1m0m->Clone("p1m0m_rebinned");
   TH1D *h1m0m = p1m0m_rebin->ProjectionX("h1m0m");
   TH1D *h1m0m_cut = (TH1D*)h1m0m->Clone("h1m0m_cut");
   h1m0m_cut->GetXaxis()->SetRangeUser(40,300);
 
-  TProfile *p1corrm = p2corrm->ProfileY("pcorrm",i1m,i2m);
-  TH1D *h1corrm = p1corrm->ProjectionX("h1corrm");
-  TH1D *h1m0m_corr = (TH1D*)h1m0m->Clone("h1m0m_corr");
-  h1m0m_corr->Divide(h1corrm);
+  TProfile *p1m0mOffline = p2m0mOffline->ProfileY("p1m0mOffline",i1mOffline,i2mOffline);
+  //TProfile *p1m0mOffline_rebin = (TProfile*)p1m0mOffline->Rebin(n13,"p1m0mOffline_rebinned",v13);
+  //TProfile *p1m0mOffline_rebin = (TProfile*)p1m0mOffline->Clone("p1m0mOffline_rebinned");
+  TH1D *h1m0mOffline = p1m0mOffline->ProjectionX("h1m0mOffline");
+  TH1D *h1m0mOffline_cut = (TH1D*)h1m0mOffline->Clone("h1m0mOffline_cut");
+  h1m0mOffline_cut->GetXaxis()->SetRangeUser(40,300);
+
+  //TProfile *p1corrm = p2corrm->ProfileY("pcorrm",i1m,i2m);
+  //TH1D *h1corrm = p1corrm->ProjectionX("h1corrm");
+  //TH1D *h1m0m_corr = (TH1D*)h1m0m->Clone("h1m0m_corr");
+  //h1m0m_corr->Divide(h1corrm);
   
   double xmin(15), xmax(4500);
   TH1D *h = tdrHist("h","JES",0.82-0.20,1.12+0.20,"p_{T,#gamma} (GeV)",15,4500);
   lumi_136TeV = Form("Run %d, 1 fb^{-1}",run);
   TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
   gPad->SetLogx();
-  drawCustomLogXLabels(h);
+  //drawCustomLogXLabels(h);
 
   TLine *l = new TLine();
   l->SetLineStyle(kDashed);
@@ -83,11 +98,28 @@ void L2L3Res() {
   l->DrawLine(xmin,1,xmax,1);
 
   tdrDraw(p1m0m_rebin,"HIST",kNone,kBlue-9,kSolid,-1,kNone,0);
-  tdrDraw(h1m0m_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
+  tdrDraw(p1m0mOffline,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
+  //tdrDraw(h1m0m_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
   tdrDraw(p1m0,"Pz",kOpenSquare,kRed-9,kSolid,-1,kNone,0);
   tdrDraw(p1m0_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
   tdrDraw(h1m0_cut,"Pz",kFullCircle,kBlack,kSolid,-1,kNone,0);
+  
+  // Make legends
+  TLegend *leg = new TLegend(0.55, 0.70, 0.88, 0.90);
+  leg->SetFillStyle(0);   // Transparent background
+  leg->SetBorderSize(0);  // No border
+  leg->SetTextFont(42);   // Standard CMS TDR font
+  leg->SetTextSize(0.04);
 
+  leg->AddEntry(h1m0_cut, "Data (fit region)", "pe");
+  leg->AddEntry(p1m0_rebin, "Data (rebinned)", "pe");
+  leg->AddEntry(p1m0, "Data (unrebinned)", "pe");
+  leg->AddEntry(p1m0mOffline, "MC Offline", "le");
+  leg->AddEntry(p1m0m_rebin, "MC Online", "le");
+  
+  leg->Draw();
+
+  // Save to pdf
   c1->SaveAs("pdf/L2L3Res_c1_Eta13.pdf");
   
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
