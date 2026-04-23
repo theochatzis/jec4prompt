@@ -1,0 +1,24 @@
+{
+  "global": {
+    "jes_limitMin": 0.62,
+    "jes_limitMax": 1.32
+  },
+  "channels": {
+    "photonjet": {
+      "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000],
+      "profile_name": "DB_2D",
+      "xmin": 15.0,
+      "xmax": 4500.0,
+      "color_data": 1,
+      "color_mc": 591
+    },
+    "zjet": {
+      "pt_binning": [30, 40, 50, 60, 85, 105, 130, 175, 230, 300, 400, 500, 700, 1000, 1500],
+      "profile_name": "MPF_2D",
+      "xmin": 30.0,
+      "xmax": 1500.0,
+      "color_data": 1,
+      "color_mc": 623
+    }
+  }
+}

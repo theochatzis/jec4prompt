@@ -2,11 +2,59 @@
 //          Focus on JEC stability and robustness
 #include "TFile.h"
 #include "TProfile2D.h"
+#include "TLegend.h"
+#include "TLine.h"
+#include "TCanvas.h"
+
+// JSON headers
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <vector>
 
 #include "tdrstyle_mod22.C"
 
-void L2L3Res(int run = 398801, TString basePath="Run2025G") {
+void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photonjet") {
+  // --- READ JSON CONFIGURATION ---
+  boost::property_tree::ptree propertyTree;
+  try {
+      boost::property_tree::read_json("constants.json", propertyTree);
+  } catch (const std::exception& e) {
+      std::cerr << "Error reading constants.json: " << e.what() << std::endl;
+      return; 
+  }
 
+  // Extract Global Variables
+  // note : second argument acts as a fall-back in case it isn't found.
+  double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
+  double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
+  
+  std::string ch = channel.Data();
+  std::string chPath = "channels." + ch; // e.g., "channels.photonjet"
+  // Verify the channel exists inside the JSON file
+  if (!propertyTree.count("channels") || !propertyTree.get_child("channels").count(ch)) {
+      std::cerr << "Error: Channel '" << ch << "' not found in constants.json!" << std::endl;
+      return;
+  }
+  
+  // Extract variables for the current channel
+  std::string profileName = propertyTree.get<std::string>(chPath + ".profile_name");
+  double xmin = propertyTree.get<double>(chPath + ".xmin");
+  double xmax = propertyTree.get<double>(chPath + ".xmax");
+  int colorData = propertyTree.get<int>(chPath + ".color_data");
+  int colorMC = propertyTree.get<int>(chPath + ".color_mc");
+
+  // Extract pt_binning list into a C++ vector
+  std::vector<double> v_pt_bins;
+  for (auto& item : propertyTree.get_child(chPath + ".pt_binning")) {
+      v_pt_bins.push_back(item.second.get<double>(""));
+  }
+  // Define rebinning to ensure sufficient statistics
+  // Original binning
+  // {5, 7, 9, 11, 13, 15, 17, 20, 24, 28, 32, 36, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 196, 220, 245, 272, 300, 330, 362, 395, 430, 468, 507, 548, 592, 638, 686, 737, 790, 846, 905, 967, 1032, 1101, 1172, 1248, 1327, 1410, 1497, 1588, 1684, 1784, 1890, 2000, 2116, 2238, 2366, 2500, 2640, 2787, 2941, 3103, 3273, 3450, 3637, 3832, 4037, 4252, 4477, 4713, 4961, 5220, 5492, 5777, 6076, 6389, 6717, 7000}
+  const Double_t* v13 = v_pt_bins.data();
+  const int n13 = v_pt_bins.size() - 1;
+  // -------------------------------
+  
   gROOT->ProcessLine(Form(".! mkdir %s", basePath.Data()));
   //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
   gROOT->ProcessLine(Form(".! touch %s", basePath.Data()));
@@ -14,9 +62,10 @@ void L2L3Res(int run = 398801, TString basePath="Run2025G") {
 
   setTDRStyle();
   TDirectory *curdir = gDirectory;
-  
-  // Load input file
-  TString dataPath = Form("/eos/user/j/jecpcl/public/jec4prompt/runs/Run%s/run%d/photonjet/J4PHists_runs%dto%d_photonjet.root", basePath.Data(), run, run, run);
+
+  // Load input file, using the channel variable for the path as well
+  TString dataPath = Form("/eos/user/j/jecpcl/public/jec4prompt/runs/Run%s/run%d/%s/J4PHists_runs%dto%d_%s.root", 
+                          basePath.Data(), run, channel.Data(), run, run, channel.Data());
   
   //TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
   TFile *f = new TFile(dataPath,"READ");
@@ -39,17 +88,12 @@ void L2L3Res(int run = 398801, TString basePath="Run2025G") {
   
   curdir->cd();
 
-  // Define rebinning to ensure sufficient statistics
-  // Original binning
-  // {5, 7, 9, 11, 13, 15, 17, 20, 24, 28, 32, 36, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 196, 220, 245, 272, 300, 330, 362, 395, 430, 468, 507, 548, 592, 638, 686, 737, 790, 846, 905, 967, 1032, 1101, 1172, 1248, 1327, 1410, 1497, 1588, 1684, 1784, 1890, 2000, 2116, 2238, 2366, 2500, 2640, 2787, 2941, 3103, 3273, 3450, 3637, 3832, 4037, 4252, 4477, 4713, 4961, 5220, 5492, 5777, 6076, 6389, 6717, 7000}
-  const Double_t v13[] =
-    {20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153,
-     174, 220, 300, 430, 638, 1032, 2000, 7000};
-  const int n13 = sizeof(v13)/sizeof(v13[0])-1;
+
+
   
   // Load input data (MPF, DB) from file
-  TProfile2D *p2m0 = (TProfile2D*)f->Get("DB_2D"); assert(p2m0);
-  TProfile2D *p2m0m = (TProfile2D*)fm->Get("DB_2D"); assert(p2m0m);
+  TProfile2D *p2m0 = (TProfile2D*)f->Get(profileName.c_str()); assert(p2m0);
+  TProfile2D *p2m0m = (TProfile2D*)fm->Get(profileName.c_str()); assert(p2m0m);
   TProfile2D *p2m0mOffline = (TProfile2D*)fmOffline->Get("Gamjet2/p2m2"); assert(p2m0mOffline);
   //TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
 
@@ -95,8 +139,7 @@ void L2L3Res(int run = 398801, TString basePath="Run2025G") {
   //TH1D *h1m0m_corr = (TH1D*)h1m0m->Clone("h1m0m_corr");
   //h1m0m_corr->Divide(h1corrm);
   
-  double xmin(15), xmax(4500);
-  TH1D *h = tdrHist("h","JES",0.82-0.20,1.12+0.20,"p_{T,#gamma} (GeV)",15,4500);
+  TH1D *h = tdrHist("h","JES",jes_limitMin,jes_limitMax,"p_{T,#gamma} (GeV)",xmin,xmax);
   lumi_136TeV = Form("Run %d, 1 fb^{-1}",run);
   TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
   gPad->SetLogx();
@@ -107,12 +150,12 @@ void L2L3Res(int run = 398801, TString basePath="Run2025G") {
   l->SetLineColor(kGray+1);
   l->DrawLine(xmin,1,xmax,1);
 
-  tdrDraw(p1m0m_rebin,"HIST",kNone,kBlue-9,kSolid,-1,kNone,0);
+  tdrDraw(p1m0m_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
   tdrDraw(p1m0mOffline,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
   //tdrDraw(h1m0m_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
   tdrDraw(p1m0,"Pz",kOpenSquare,kRed-9,kSolid,-1,kNone,0);
   tdrDraw(p1m0_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
-  tdrDraw(h1m0_cut,"Pz",kFullCircle,kBlack,kSolid,-1,kNone,0);
+  tdrDraw(h1m0_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
   
   // Make legends
   TLegend *leg = new TLegend(0.55, 0.70, 0.88, 0.90);
@@ -150,7 +193,7 @@ void L2L3Res(int run = 398801, TString basePath="Run2025G") {
   delete h; 
   delete l;
 
-  // 2. Delete the histograms/profiles created in this specific επιλογών
+  // 2. Delete the histograms/profiles created
   delete p1m0;
   delete p1m0_rebin;
   // delete other projections/clones...
