@@ -5,22 +5,32 @@
 
 #include "tdrstyle_mod22.C"
 
-void L2L3Res() {
+void L2L3Res(int run = 398801, TString basePath="Run2025G") {
 
-  gROOT->ProcessLine(".! mkdir pdf");
-  gROOT->ProcessLine(".! mkdir pdf/L2L3Res");
-  gROOT->ProcessLine(".! touch pdf");
-  gROOT->ProcessLine(".! touch pdf/L2L3Res");
+  gROOT->ProcessLine(Form(".! mkdir %s", basePath.Data()));
+  //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
+  gROOT->ProcessLine(Form(".! touch %s", basePath.Data()));
+  //gROOT->ProcessLine(Form(".! touch %s/L2L3Res", basePath.Data()));
 
   setTDRStyle();
   TDirectory *curdir = gDirectory;
   
   // Load input file
-  int run = 398801;
-  //TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
-  TFile *f = new TFile("/eos/user/j/jecpcl/public/jec4prompt/runs/Run2025C/run392175/photonjet/J4PHists_runs392175to392175_photonjet.root","READ");
+  TString dataPath = Form("/eos/user/j/jecpcl/public/jec4prompt/runs/Run%s/run%d/photonjet/J4PHists_runs%dto%d_photonjet.root", basePath.Data(), run, run, run);
   
-  assert(f && !f->IsZombie());
+  //TFile *f = new TFile("rootfiles/J4PHists_runs392175to392175_photonjet.root","READ");
+  TFile *f = new TFile(dataPath,"READ");
+  
+  //assert(f && !f->IsZombie());
+  if (!f || f->IsZombie()) {
+      std::cerr << "Warning: Could not open data file for run " << run << ". Skipping..." << std::endl;
+      if (f) {
+          f->Close(); 
+          delete f; // Prevent memory leaks
+      }
+      return; // Skips the rest of the code and goes to the next run in the loop
+  }
+
   TFile *fm = new TFile("rootfiles/reweighted_J4PHists_photonjet_GJ-4Jets.root","READ");
   TFile *fmOffline = new TFile("rootfiles/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
   //TFile *fm = new TFile("../jecsys3/rootfiles/Prompt2024/Gam_w73/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
@@ -120,7 +130,7 @@ void L2L3Res() {
   leg->Draw();
 
   // Save to pdf
-  c1->SaveAs("pdf/L2L3Res_c1_Eta13.pdf");
+  c1->SaveAs(Form("%s/L2L3Res_c1_Eta13_run%d.png", basePath.Data(), run));
   
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
   
@@ -134,4 +144,20 @@ void L2L3Res() {
   // Production of L2L3Res text file
   // (Later, add also mapping from pTtag to <pTprobe,raw> before this)
   
+  // CLEANUP SECTION ( to avoid memory leaks)
+  // 1. Delete the canvas to free up graphics memory
+  delete c1;
+  delete h; 
+  delete l;
+
+  // 2. Delete the histograms/profiles created in this specific επιλογών
+  delete p1m0;
+  delete p1m0_rebin;
+  // delete other projections/clones...
+
+  // 3. Close and delete files
+  f->Close();    delete f;
+  fm->Close();   delete fm;
+  fmOffline->Close(); delete fmOffline;
+
 } // L2L3Res
