@@ -13,7 +13,7 @@
 
 #include "tdrstyle_mod22.C"
 
-void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photonjet") {
+void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photonjet") {
   // --- READ JSON CONFIGURATION ---
   boost::property_tree::ptree propertyTree;
   try {
@@ -22,11 +22,27 @@ void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photon
       std::cerr << "Error reading constants.json: " << e.what() << std::endl;
       return; 
   }
-
+  std::string outputBaseDirectory = propertyTree.get<std::string>("global.outputBaseDirectory", "");
   // Extract Global Variables
   // note : second argument acts as a fall-back in case it isn't found.
+  std::string jsonWithLumis_path = propertyTree.get<std::string>("global.jsonWithLumis_path", "");
+  
+  //Get luminosity 
+  float luminosity = 0.;
+  try {
+      boost::property_tree::ptree groupingJsonTree;
+      boost::property_tree::read_json(jsonWithLumis_path, groupingJsonTree);
+      luminosity = groupingJsonTree.get<float>(Form("runs.%d.recorded_lumi", run)); // it is pb^-1
+      luminosity *= 0.001;
+  } catch (const std::exception& e) {
+      std::cerr << Form("Error reading %s: ", jsonWithLumis_path.c_str()) << e.what() << std::endl;
+      return; 
+  }
+
   double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
   double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
+  
+  
   
   std::string ch = channel.Data();
   std::string chPath = "channels." + ch; // e.g., "channels.photonjet"
@@ -55,9 +71,9 @@ void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photon
   const int n13 = v_pt_bins.size() - 1;
   // -------------------------------
   
-  gROOT->ProcessLine(Form(".! mkdir %s", basePath.Data()));
+  gROOT->ProcessLine(Form(".! mkdir %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
   //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
-  gROOT->ProcessLine(Form(".! touch %s", basePath.Data()));
+  gROOT->ProcessLine(Form(".! touch %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
   //gROOT->ProcessLine(Form(".! touch %s/L2L3Res", basePath.Data()));
 
   setTDRStyle();
@@ -94,7 +110,7 @@ void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photon
   // Load input data (MPF, DB) from file
   TProfile2D *p2m0 = (TProfile2D*)f->Get(profileName.c_str()); assert(p2m0);
   TProfile2D *p2m0m = (TProfile2D*)fm->Get(profileName.c_str()); assert(p2m0m);
-  TProfile2D *p2m0mOffline = (TProfile2D*)fmOffline->Get("Gamjet2/p2m2"); assert(p2m0mOffline);
+  TProfile2D *p2m0mOffline = (TProfile2D*)fmOffline->Get("Gamjet2/p2m0"); assert(p2m0mOffline);
   //TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
 
   // Initial fit at |eta|<1.305 needed for scaling dijet data to L2L3Res level
@@ -140,7 +156,7 @@ void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photon
   //h1m0m_corr->Divide(h1corrm);
   
   TH1D *h = tdrHist("h","JES",jes_limitMin,jes_limitMax,"p_{T,#gamma} (GeV)",xmin,xmax);
-  lumi_136TeV = Form("Run %d, 1 fb^{-1}",run);
+  lumi_136TeV = Form("Run %d, %.3f fb^{-1}", run, luminosity);
   TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
   gPad->SetLogx();
   //drawCustomLogXLabels(h);
@@ -173,7 +189,7 @@ void L2L3Res(int run = 398801, TString basePath="2025G", TString channel="photon
   leg->Draw();
 
   // Save to pdf
-  c1->SaveAs(Form("%s/L2L3Res_c1_Eta13_run%d.png", basePath.Data(), run));
+  c1->SaveAs(Form("%s/%s/L2L3Res_c1_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
   
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
   

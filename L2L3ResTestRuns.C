@@ -8,7 +8,7 @@
 // Include function for calibrations in one single run.
 #include "L2L3Res.C"
 
-void L2L3ResTestRuns() {
+void L2L3ResTestRunsOneEra(TString era="2025G") {
     // SILENT MODE: Prevent GUI popups
     gROOT->SetBatch(kTRUE);
     
@@ -16,7 +16,7 @@ void L2L3ResTestRuns() {
     TH1::AddDirectory(kFALSE);
     
     // The base directory containing the "runXXXXXX" folders
-    TString era = "2025G";
+    //TString era = "2025G";
     const char *basePath = Form("/eos/user/j/jecpcl/public/jec4prompt/runs/Run%s/", era.Data());
     
     TSystemDirectory dir("runDir", basePath);
@@ -53,4 +53,19 @@ void L2L3ResTestRuns() {
     }
     
     cout << "\n--- All runs processed ---" << endl;
-} // L2L3ResTestRuns
+} // L2L3ResTestRunsOneEra
+
+void L2L3ResTestRuns(){
+  const int Neras = 5; 
+  TString erasArray[Neras] = { 
+  "2025C",
+  "2025D",
+  "2025E",
+  "2025F",
+  "2025G"
+  };
+
+  for (int iEra=0;iEra<Neras;iEra++){
+    L2L3ResTestRunsOneEra(erasArray[iEra]);
+  }
+}
