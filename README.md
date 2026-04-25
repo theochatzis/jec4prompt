@@ -23,6 +23,19 @@ root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet")'
 
 You can find the constants like input paths, binnings for the channels etc in a single json file `constants.json`.
 
+# Deriving the JECs
+```
+# Placeholder for instructions
+```
+# Making correction JSON files from `.txt`
+Using the standard JERC group [framework](https://gitlab.cern.ch/cms-jetmet/jerc2json).
+
+```
+# Placeholder for instructions
+```
+
 # Descriptions of scripts
 - `L2L3Res.C`: Derivation of L2L3Res fit for calibrations. 
 - `L2L3ResTestRuns.C`: Makes usage of `L2L3Res.C` and loops the procedure over all runs of one era stored in `jecpcl`.
+
+ 
