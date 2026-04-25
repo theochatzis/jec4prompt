@@ -13,6 +13,13 @@
 
 #include "tdrstyle_mod22.C"
 
+// --- Helper Struct for Eta-dependent Pt Binning ---
+struct EtaBinConfig {
+    double abs_eta_min;
+    double abs_eta_max;
+    std::vector<double> pt_bins;
+};
+
 void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photonjet") {
   // --- READ JSON CONFIGURATION ---
   boost::property_tree::ptree propertyTree;
@@ -59,21 +66,35 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   int colorData = propertyTree.get<int>(chPath + ".color_data");
   int colorMC = propertyTree.get<int>(chPath + ".color_mc");
 
-  // Extract pt_binning list into a C++ vector
-  std::vector<double> v_pt_bins;
-  for (auto& item : propertyTree.get_child(chPath + ".pt_binning")) {
-      v_pt_bins.push_back(item.second.get<double>(""));
+  // Parse pt-eta dependent binning into the struct which has the eta bins (min,max) and pT as a vector 
+  std::vector<EtaBinConfig> etaConfigs;
+  for (auto& item : propertyTree.get_child(chPath + ".eta_binnings")) {
+      EtaBinConfig config;
+      config.abs_eta_min = item.second.get<double>("abs_eta_min");
+      config.abs_eta_max = item.second.get<double>("abs_eta_max");
+      for (auto& pt_item : item.second.get_child("pt_binning")) {
+          config.pt_bins.push_back(pt_item.second.get<double>(""));
+      }
+      etaConfigs.push_back(config);
   }
-  // Define rebinning to ensure sufficient statistics
-  // Original binning
-  // {5, 7, 9, 11, 13, 15, 17, 20, 24, 28, 32, 36, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 196, 220, 245, 272, 300, 330, 362, 395, 430, 468, 507, 548, 592, 638, 686, 737, 790, 846, 905, 967, 1032, 1101, 1172, 1248, 1327, 1410, 1497, 1588, 1684, 1784, 1890, 2000, 2116, 2238, 2366, 2500, 2640, 2787, 2941, 3103, 3273, 3450, 3637, 3832, 4037, 4252, 4477, 4713, 4961, 5220, 5492, 5777, 6076, 6389, 6717, 7000}
-  const Double_t* v13 = v_pt_bins.data();
-  const int n13 = v_pt_bins.size() - 1;
+
+  // Helper lambda to fetch the correct pt binning for a given eta
+  auto getPtBinning = [&](double eta) -> std::vector<double> {
+      double abs_eta = std::abs(eta);
+      for (const auto& config : etaConfigs) {
+          if (abs_eta >= config.abs_eta_min && abs_eta <= config.abs_eta_max + 1e-5) {
+              return config.pt_bins;
+          }
+      }
+      // Fallback to first configuration if no match is found
+      if (!etaConfigs.empty()) return etaConfigs.front().pt_bins;
+      return {}; 
+  };
   // -------------------------------
   
-  gROOT->ProcessLine(Form(".! mkdir %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
-  //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
+  gROOT->ProcessLine(Form(".! mkdir -p %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
   gROOT->ProcessLine(Form(".! touch %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
+  //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
   //gROOT->ProcessLine(Form(".! touch %s/L2L3Res", basePath.Data()));
 
   setTDRStyle();
@@ -103,9 +124,6 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   assert(fmOffline && !fmOffline->IsZombie());
   
   curdir->cd();
-
-
-
   
   // Load input data (MPF, DB) from file
   TProfile2D *p2m0 = (TProfile2D*)f->Get(profileName.c_str()); assert(p2m0);
@@ -130,25 +148,34 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   double eta2mOffline = p2m0mOffline->GetXaxis()->GetBinLowEdge(i2m)+1;
 
   cout << Form("Fitting %1.3f #LT eta < %1.3f reference region\n",eta1,eta2);
+
+  // Get reference binning (central region, eta ~ 0.0)
+  std::vector<double> v_pt_bins_ref = getPtBinning(0.0);
+  const Double_t* v13_ref = v_pt_bins_ref.data();
+  const int n13_ref = v_pt_bins_ref.size() - 1;
+
+  float fit_region_min  = 40;
+  float fit_region_max = 300;
+
   TProfile *p1m0 = p2m0->ProfileY("p1m0",i1,i2);
-  TProfile *p1m0_rebin = (TProfile*)p1m0->Rebin(n13,"p1m0_rebinned",v13);
+  TProfile *p1m0_rebin = (TProfile*)p1m0->Rebin(n13_ref,"p1m0_rebinned",v13_ref);
   TH1D *h1m0 = p1m0_rebin->ProjectionX("h1m0");
   TH1D *h1m0_cut = (TH1D*)h1m0->Clone("h1m0_cut");
-  h1m0_cut->GetXaxis()->SetRangeUser(40,300);
+  h1m0_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   TProfile *p1m0m = p2m0m->ProfileY("p1m0m",i1m,i2m);
-  TProfile *p1m0m_rebin = (TProfile*)p1m0m->Rebin(n13,"p1m0m_rebinned",v13);
+  TProfile *p1m0m_rebin = (TProfile*)p1m0m->Rebin(n13_ref,"p1m0m_rebinned",v13_ref);
   //TProfile *p1m0m_rebin = (TProfile*)p1m0m->Clone("p1m0m_rebinned");
   TH1D *h1m0m = p1m0m_rebin->ProjectionX("h1m0m");
   TH1D *h1m0m_cut = (TH1D*)h1m0m->Clone("h1m0m_cut");
-  h1m0m_cut->GetXaxis()->SetRangeUser(40,300);
+  h1m0m_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   TProfile *p1m0mOffline = p2m0mOffline->ProfileY("p1m0mOffline",i1mOffline,i2mOffline);
-  //TProfile *p1m0mOffline_rebin = (TProfile*)p1m0mOffline->Rebin(n13,"p1m0mOffline_rebinned",v13);
+  //TProfile *p1m0mOffline_rebin = (TProfile*)p1m0mOffline->Rebin(n13_ref,"p1m0mOffline_rebinned",v13_ref);
   //TProfile *p1m0mOffline_rebin = (TProfile*)p1m0mOffline->Clone("p1m0mOffline_rebinned");
   TH1D *h1m0mOffline = p1m0mOffline->ProjectionX("h1m0mOffline");
   TH1D *h1m0mOffline_cut = (TH1D*)h1m0mOffline->Clone("h1m0mOffline_cut");
-  h1m0mOffline_cut->GetXaxis()->SetRangeUser(40,300);
+  h1m0mOffline_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   //TProfile *p1corrm = p2corrm->ProfileY("pcorrm",i1m,i2m);
   //TH1D *h1corrm = p1corrm->ProjectionX("h1corrm");
@@ -189,7 +216,13 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   leg->Draw();
 
   // Save to pdf
-  c1->SaveAs(Form("%s/%s/L2L3Res_c1_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
+  c1->SaveAs(Form("%s/%s/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
+  
+  // ==========================================================
+  // Production of L2L3Res text file & Fit Loop over |eta| bins
+  // ==========================================================
+  // Define JEC fit formula string
+  TString fit_formula = "[2]*([3]*([4]+TMath::Log(max([0],min([1],x)))*([5]+TMath::Log(max([0],min([1],x)))*[6])+[7]/x))*1./([8]+[9]/x+[10]*log(x)/x+[11]*(pow(x/[12],[13])-1)/(pow(x/[12],[13])+1)+[14]*pow(x,-0.3051)+[15]*x)";
   
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
   
