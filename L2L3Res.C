@@ -203,7 +203,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   //h1_MPFOffline_MC_corr->Divide(h1corrm);
   
   TH1D *h = tdrHist("h","JES",jes_limitMin,jes_limitMax,"p_{T,#gamma} (GeV)",xmin,xmax);
-  lumi_136TeV = Form("Run %d, %.3f fb^{-1}", run, luminosity);
+  lumi_136TeV = Form("Run %d, %.2f fb^{-1}", run, luminosity);
   TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
   gPad->SetLogx();
   //drawCustomLogXLabels(h);
@@ -279,7 +279,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   }
   std::sort(custom_eta_edges.begin(), custom_eta_edges.end());
   int nCustomEtaBins = custom_eta_edges.size() - 1;
-
+  
   curdir->cd(); // Ensure objects are written to the current active directory
 
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
@@ -401,33 +401,48 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
         std::cerr << Form("Warning: Not enough points for fit in bin %d (%d points)\n", ix, n_points);
     }
     
-    // --- Formatting and Plotting ---
-    TCanvas *cFit = new TCanvas(Form("cFit_%d", ix), "Fit Canvas", 800, 800);
-    gPad->SetLogx();
-    gPad->SetRightMargin(0.05); gPad->SetTopMargin(0.10);
+    // --- Plotting ---
+    // Determine dynamic Y-axis bounds
+    double y_min = (min_ratio < 9999.0) ? 0.8 * min_ratio : 0.8;
+    double y_max = (max_ratio > -9999.0) ? 1.2 * max_ratio : 1.2;
 
-    // Apply dynamic title and Y-axis limits
-    h_ratio->SetTitle(Form("%1.3f < #eta < %1.3f;Reco Jet p_{T} (GeV);JES MC/Data", eta_min, eta_max));
-    if (min_ratio < 9999.0 && max_ratio > -9999.0) {
-        h_ratio->GetYaxis()->SetRangeUser(0.8 * min_ratio, 1.2 * max_ratio);
-    }
-
-    h_ratio->Draw("AXIS"); 
-    h_ratio->Draw("P SAME"); 
-    g_ratio_vs_jetpt->Draw("P SAME"); 
-    func->SetLineColor(kBlue); func->SetLineWidth(3);
-    func->Draw("L SAME"); 
+    // Create an empty dummy histogram to enforce TDR fonts, axes, and titles
+    TH1D *h_dummy = tdrHist(Form("h_dummy_%d", ix), "JES MC/Data", y_min, y_max, "Reco Jet p_{T} (GeV)", xmin, xmax);
     
-    TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); 
-    lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
+    // Create the TDR canvas (Period 8 = 13.6 TeV, Pos 11 = Top-Left CMS label)
+    TCanvas *cFit = tdrCanvas(Form("cFit_%d", ix), h_dummy, 8, 0, kSquare);
+    gPad->SetLogx();
+
+    // Draw a dashed line at exactly 1.0 for reference
+    TLine *ll = new TLine(); 
+    ll->SetLineStyle(kDashed); ll->SetLineColor(kGray+1);
+    ll->DrawLine(xmin, 1.0, xmax, 1.0);
+
+    // Draw data points using tdrDraw for consistent CMS styling
+    // Tag-based (black open squares)
+    tdrDraw(h_ratio, "P", kOpenSquare, kBlack, kSolid, -1, kNone, 0); 
+    // Mapped Jet-based (red full circles)
+    tdrDraw(g_ratio_vs_jetpt, "P", kFullCircle, kBlack, kSolid, -1, kNone, 0); 
+    
+    // Draw the fit
+    func->SetLineColor(kBlue); 
+    func->SetLineWidth(3);
+    func->Draw("L SAME"); 
+
+    // Draw the TDR-styled Legend
+    TLegend *lt = tdrLeg(0.20, 0.70, 0.50, 0.88); 
     lt->AddEntry(h_ratio, "Tag-based", "pe");
     lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
     lt->AddEntry(func, "L2L3 Fit", "l");
-    lt->Draw();
 
-    TLine *ll = new TLine(); ll->SetLineStyle(kDashed); ll->DrawLine(gPad->GetUxmin(), 1.0, gPad->GetUxmax(), 1.0);
-    
-    // Save individual canvas. Formats numbers securely (e.g., +02.500 or -01.305)
+    // Add standard CMS TLatex for the specific eta bin info
+    TLatex *tex_eta = new TLatex();
+    tex_eta->SetNDC();
+    tex_eta->SetTextFont(42);
+    tex_eta->SetTextSize(0.045);
+    tex_eta->DrawLatex(0.20, 0.65, Form("%1.3f < #eta < %1.3f", eta_min, eta_max));
+
+    // Save individual canvas
     TString plot_name = Form("%s/%s/%d/fits/L2L3Res_Fit_eta_%dp%d_to_%dp%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, 
     int(floor(eta_min)), int(round((eta_min-floor(eta_min))*1000.)), 
     int(floor(eta_max)), int(round((eta_max-floor(eta_max))*1000.))
@@ -445,21 +460,11 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     out_file << "\n";
     
     // Cleanup within loop to control memory usage
-    delete lt;
-    delete ll;
-    delete func;
-    delete g_ratio_vs_jetpt;
+    delete tex_eta; delete h_dummy;
+    delete lt; delete ll; delete func; delete g_ratio_vs_jetpt; delete h_ratio;
+    delete h_mc; delete p_mc_rebin; delete p_mc; delete h_data; delete p_data_rebin; delete p_data;
+    delete h_db_data; delete p_db_data_rebin; delete p_db_data;
     delete cFit;
-    delete h_ratio;
-    delete h_mc;
-    delete p_mc_rebin;
-    delete p_mc;
-    delete h_data;
-    delete p_data_rebin;
-    delete p_data;
-    delete h_db_data;
-    delete p_db_data_rebin;
-    delete p_db_data;
   } // End of loop over eta bins
 
   // Close the text file and save the fit grid canvas
