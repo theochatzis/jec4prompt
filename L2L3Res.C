@@ -322,6 +322,10 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
     TGraphErrors *g_ratio_vs_jetpt = new TGraphErrors();
     int n_points = 0;
     
+    // Variables to track min and max for dynamic y-axis scaling
+    double min_ratio = 9999.0;
+    double max_ratio = -9999.0;
+    
     for (int b = 1; b <= h_ratio->GetNbinsX(); ++b) {
         double pt_tag = h_ratio->GetBinCenter(b);
         double ratio = h_ratio->GetBinContent(b);
@@ -333,114 +337,126 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
             g_ratio_vs_jetpt->SetPoint(n_points, pt_jet, ratio);
             g_ratio_vs_jetpt->SetPointError(n_points, 0.0, ratio_err); 
             n_points++;
+            
+            // Track the extremum values
+            if (ratio < min_ratio) min_ratio = ratio;
+            if (ratio > max_ratio) max_ratio = ratio;
         }
     }
+    
+    // --- Set Titles and Dynamic Range ---
+    h_ratio->SetTitle(";Reco Jet p_{T} (GeV);JES MC/Data");
+    
+    // Safety check: only apply dynamic range if valid points were found
+    if (min_ratio < 9999.0 && max_ratio > -9999.0) {
+        h_ratio->GetYaxis()->SetRangeUser(0.9 * min_ratio, 1.1 * max_ratio);
+    }
 
-      TF1* func = new TF1(Form("fit_eta_%d", ix), fit_formula.Data(), xmin, xmax);
-      
-      // Fix stability clamps [0] and [1] globally
-      func->FixParameter(0, 30.0);
-      
-      // Dynamic clamp for p1 (upper logarithmic stability anchor)
-      double p1_clamp = 140.0;
-      double abs_eta = std::abs(eta_center);
-      if (abs_eta <= 1.305) p1_clamp = 1290.0;
-      else if (abs_eta <= 2.5) p1_clamp = 700.0;
-      else if (abs_eta <= 3.0) p1_clamp = 330.0;
-      else p1_clamp = 140.0;
-      func->FixParameter(1, p1_clamp);
-      
-      // Initial seeds for L2L3 residual parameters
-      func->SetParameter(2, 1.0); // Global scale
-      func->SetParameter(3, 1.0); // Secondary scale 
-      func->SetParameter(4, 1.0); // Log offset
-      func->SetParameter(5, 0.0);
-      func->SetParameter(6, 0.0);
-      func->SetParameter(7, 0.0);
-      
-      // Denominator anchored to standard Run 3 MC parameterization (from standard constants)
-      func->SetParameter(8, 0.9461);
-      func->SetParameter(9, 0.6498);
-      func->SetParameter(10, 0.06043);
-      func->SetParameter(11, 0.05852);
-      func->SetParameter(12, 221.98);
-      func->SetParameter(13, 0.8940);
-      func->SetParameter(14, -0.17906);
-      func->SetParameter(15, -0.00002410);
+    TF1* func = new TF1(Form("fit_eta_%d", ix), fit_formula.Data(), xmin, xmax);
+    
+    // Fix stability clamps [0] and [1] globally
+    func->FixParameter(0, 30.0);
+    
+    // Dynamic clamp for p1 (upper logarithmic stability anchor)
+    double p1_clamp = 140.0;
+    double abs_eta = std::abs(eta_center);
+    if (abs_eta <= 1.305) p1_clamp = 1290.0;
+    else if (abs_eta <= 2.5) p1_clamp = 700.0;
+    else if (abs_eta <= 3.0) p1_clamp = 330.0;
+    else p1_clamp = 140.0;
+    func->FixParameter(1, p1_clamp);
+    
+    // Initial seeds for L2L3 residual parameters
+    func->SetParameter(2, 1.0); // Global scale
+    func->SetParameter(3, 1.0); // Secondary scale 
+    func->SetParameter(4, 1.0); // Log offset
+    func->SetParameter(5, 0.0);
+    func->SetParameter(6, 0.0);
+    func->SetParameter(7, 0.0);
+    
+    // Denominator anchored to standard Run 3 MC parameterization (from standard constants)
+    func->SetParameter(8, 0.9461);
+    func->SetParameter(9, 0.6498);
+    func->SetParameter(10, 0.06043);
+    func->SetParameter(11, 0.05852);
+    func->SetParameter(12, 221.98);
+    func->SetParameter(13, 0.8940);
+    func->SetParameter(14, -0.17906);
+    func->SetParameter(15, -0.00002410);
 
-      // Perform fit against mapped TGraphErrors. Q=Quiet, R=Range.
-      if (n_points >= 4) { // Require minimum points for a robust multiparameter fit
-          g_ratio_vs_jetpt->Fit(func, "RQ"); 
-          
-          // Fill Chi2/ndf monitoring graph
-          if (func->GetNDF() > 0) {
-              double chi2ndf = func->GetChisquare() / func->GetNDF();
-              g_chi2ndf->SetPoint(iPointChi2, eta_center, chi2ndf);
-              g_chi2ndf->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, 0.0);
-              iPointChi2++;
-          }
-      } else {
-          std::cerr << Form("Warning: Not enough points for fit in bin %d (%d points)\n", ix, n_points);
-      }
-      
-      // --- Formatting and Plotting ---
-      h_ratio->Draw("AXIS"); // Draw axes first
-      //h_ratio->Draw("P SAME"); // Draw original tag-based ratio
-      g_ratio_vs_jetpt->Draw("P SAME"); // Draw mapped jet-based ratio
-      func->SetLineColor(kBlue); func->SetLineWidth(3);
-      func->Draw("L SAME"); // Draw fit curve
-      
-    //   TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
-    //   lt->AddEntry(h_ratio, "Tag-based", "pe");
-    //   lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
-    //   lt->AddEntry(func, "L2L3 Fit", "l");
-    //   lt->Draw();
-      TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
-      lt->AddEntry(h_ratio, Form("%1.3f < #eta < %1.3f", eta_min, eta_max), "");
-      //lt->AddEntry(h_ratio, "Tag-based", "pe");
-      lt->AddEntry(g_ratio_vs_jetpt, "MPF", "pe");
-      lt->AddEntry(func, "L2L3 Fit", "l");
-      lt->Draw();
+    // Perform fit against mapped TGraphErrors. Q=Quiet, R=Range.
+    if (n_points >= 4) { // Require minimum points for a robust multiparameter fit
+        g_ratio_vs_jetpt->Fit(func, "RQ"); 
+        
+        // Fill Chi2/ndf monitoring graph
+        if (func->GetNDF() > 0) {
+            double chi2ndf = func->GetChisquare() / func->GetNDF();
+            g_chi2ndf->SetPoint(iPointChi2, eta_center, chi2ndf);
+            g_chi2ndf->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, 0.0);
+            iPointChi2++;
+        }
+    } else {
+        std::cerr << Form("Warning: Not enough points for fit in bin %d (%d points)\n", ix, n_points);
+    }
+    
+    // --- Formatting and Plotting ---
+    h_ratio->Draw("AXIS"); // Draw axes first
+    //h_ratio->Draw("P SAME"); // Draw original tag-based ratio
+    g_ratio_vs_jetpt->Draw("P SAME"); // Draw mapped jet-based ratio
+    func->SetLineColor(kBlue); func->SetLineWidth(3);
+    func->Draw("L SAME"); // Draw fit curve
+    
+//   TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
+//   lt->AddEntry(h_ratio, "Tag-based", "pe");
+//   lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
+//   lt->AddEntry(func, "L2L3 Fit", "l");
+//   lt->Draw();
+    TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
+    lt->AddEntry(h_ratio, Form("%1.3f < #eta < %1.3f", eta_min, eta_max), "");
+    //lt->AddEntry(h_ratio, "Tag-based", "pe");
+    lt->AddEntry(g_ratio_vs_jetpt, "MPF", "pe");
+    lt->AddEntry(func, "L2L3 Fit", "l");
+    lt->Draw();
 
-      TLine *ll = new TLine(); ll->SetLineStyle(kDashed); ll->DrawLine(gPad->GetUxmin(), 1.0, gPad->GetUxmax(), 1.0);
+    TLine *ll = new TLine(); ll->SetLineStyle(kDashed); ll->DrawLine(gPad->GetUxmin(), 1.0, gPad->GetUxmax(), 1.0);
 
-      // --- Write Structured Text File Payload ---
-      int n_params = func->GetNpar();
-      int n_tokens = n_params + 2; 
-      
-      out_file << Form("%9.6f %9.6f %d %9.0f %9.0f", eta_min, eta_max, n_tokens, xmin, xmax);
-      for (int p = 0; p < n_params; ++p) {
-          out_file << Form(" %12.6f", func->GetParameter(p));
-      }
-      out_file << "\n";
-      
-      // Cleanup within loop to control memory usage
-      // CRITICAL: Do NOT delete drawn objects (lt, ll, func, g_ratio_vs_jetpt, h_ratio)
-      // here because cGrid needs them to be alive when SaveAs() is called!
-      //   delete lt;
-      //   delete ll;
-      //   delete func;
-      //   delete g_ratio_vs_jetpt;
-      //   delete h_ratio;
-      delete h_mc;
-      delete p_mc_rebin;
-      delete p_mc;
-      delete h_data;
-      delete p_data_rebin;
-      delete p_data;
-      delete h_db_data;
-      delete p_db_data_rebin;
-      delete p_db_data;
+    // --- Write Structured Text File Payload ---
+    int n_params = func->GetNpar();
+    int n_tokens = n_params + 2; 
+    
+    out_file << Form("%9.6f %9.6f %d %9.0f %9.0f", eta_min, eta_max, n_tokens, xmin, xmax);
+    for (int p = 0; p < n_params; ++p) {
+        out_file << Form(" %12.6f", func->GetParameter(p));
+    }
+    out_file << "\n";
+    
+    // Cleanup within loop to control memory usage
+    // CRITICAL: Do NOT delete drawn objects (lt, ll, func, g_ratio_vs_jetpt, h_ratio)
+    // here because cGrid needs them to be alive when SaveAs() is called!
+    //   delete lt;
+    //   delete ll;
+    //   delete func;
+    //   delete g_ratio_vs_jetpt;
+    //   delete h_ratio;
+    delete h_mc;
+    delete p_mc_rebin;
+    delete p_mc;
+    delete h_data;
+    delete p_data_rebin;
+    delete p_data;
+    delete h_db_data;
+    delete p_db_data_rebin;
+    delete p_db_data;
 
-      // 3. IF canvas is full OR it's the last bin: Save, clean drawn objects, and increment canvas counter
-      if (ix % maxPadsPerCanvas == 0 || ix == nEtaBins) {
-          cGrid->SaveAs(Form("%s/%s/L2L3Res_Fits_Grid_run%d_part%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, iCanvas));          
-          delete cGrid;
-          cGrid = nullptr;
-          iCanvas++;
-      }
-      
-      iPad++; // Increment pad for next iteration
+    // 3. IF canvas is full OR it's the last bin: Save, clean drawn objects, and increment canvas counter
+    if (ix % maxPadsPerCanvas == 0 || ix == nEtaBins) {
+        cGrid->SaveAs(Form("%s/%s/L2L3Res_Fits_Grid_run%d_part%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, iCanvas));          
+        delete cGrid;
+        cGrid = nullptr;
+        iCanvas++;
+    }
+    
+    iPad++; // Increment pad for next iteration
   } // End of loop over eta bins
 
   // Close the text file and save the fit grid canvas
