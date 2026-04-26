@@ -48,10 +48,17 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
       return; 
   }
 
+
+  double minimum_luminosity = propertyTree.get<double>("global.minimum_luminosity", 0.0);
+  
+  if (luminosity < minimum_luminosity){
+    return;
+  }
+
   double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
   double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
   
-  
+
   
   std::string ch = channel.Data();
   std::string chPath = "channels." + ch; // e.g., "channels.photonjet"
@@ -264,53 +271,70 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   g_chi2ndf->SetMarkerColor(kBlue);
   g_chi2ndf->SetLineColor(kBlue);
   int iPointChi2 = 0;
+  
+  // --- BUILD CUSTOM ETA BINNING FROM JSON ---
+  std::set<double> unique_abs_etas;
+  for (const auto& config : etaConfigs) {
+      unique_abs_etas.insert(config.abs_eta_min);
+      unique_abs_etas.insert(config.abs_eta_max);
+  }
+  
+  std::vector<double> custom_eta_edges;
+  for (double val : unique_abs_etas) {
+      if (val > 0) {
+          custom_eta_edges.push_back(val);
+          custom_eta_edges.push_back(-val);
+      } else {
+          custom_eta_edges.push_back(0.0);
+      }
+  }
+  std::sort(custom_eta_edges.begin(), custom_eta_edges.end());
+  int nCustomEtaBins = custom_eta_edges.size() - 1;
 
   curdir->cd(); // Ensure objects are written to the current active directory
 
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
-  for (int ix = 1; ix <= nEtaBins; ++ix) { 
-    // // Select correct multicanvas grid panel
-    // cGrid->cd(ix);
-    // gPad->SetLogx();
-    // gPad->SetRightMargin(0.05); gPad->SetTopMargin(0.10);
+  for (int ix = 0; ix < nCustomEtaBins; ++ix) { 
     // --- CREATE NEW CANVAS IF NEEDED ---
-    if ((ix - 1) % maxPadsPerCanvas == 0) {
+    if (ix % maxPadsPerCanvas == 0) {
         cGrid = new TCanvas(Form("cGrid_part%d", iCanvas), Form("Fits Grid Part %d", iCanvas), 2000, 2000);
         cGrid->Divide(gridX, gridY);
-        iPad = 1; // Reset pad counter for the new canvas
+        iPad = 1; 
     }
 
     cGrid->cd(iPad);
     gPad->SetLogx();
     gPad->SetRightMargin(0.05); gPad->SetTopMargin(0.10);
-    // ----------------------------------------------------------
-    // CREATION OF INPUTS PER ETA BIN
-    // ----------------------------------------------------------
-    double eta_min = p2_MPF->GetXaxis()->GetBinLowEdge(ix);
-    double eta_max = p2_MPF->GetXaxis()->GetBinUpEdge(ix);
-    double eta_center = p2_MPF->GetXaxis()->GetBinCenter(ix);
     
-    // Dynamically fetch the correct pt binning for this specific eta slice
+    // ----------------------------------------------------------
+    // AGGREGATE INPUTS FOR CORRESPONDING ETA BIN
+    // ----------------------------------------------------------
+    double eta_min = custom_eta_edges[ix];
+    double eta_max = custom_eta_edges[ix+1];
+    double eta_center = (eta_min + eta_max) / 2.0;
+    
+    // Find corresponding underlying X-axis bins in the TProfile2D
+    // Adding/subtracting 1e-5 ensures we don't accidentally grab neighboring edge bins
+    int bin_start = p2_MPF->GetXaxis()->FindBin(eta_min + 1e-5);
+    int bin_end   = p2_MPF->GetXaxis()->FindBin(eta_max - 1e-5);
+    
     std::vector<double> current_pt_bins = getPtBinning(eta_center);
     const Double_t* v_pt = current_pt_bins.data();
     const int n_pt = current_pt_bins.size() - 1;
     
-    // Extract Profiles, rebin using the dynamically fetched array and project
-    TProfile *p_data = p2_MPF->ProfileY(Form("p_data_%d", ix), ix, ix);
+    // Use ProfileY over the custom range: (name, start_bin, end_bin)
+    TProfile *p_data = p2_MPF->ProfileY(Form("p_data_%d", ix), bin_start, bin_end);
     TProfile *p_data_rebin = (TProfile*)p_data->Rebin(n_pt, Form("p_data_rebin_%d", ix), v_pt);
     TH1D *h_data = p_data_rebin->ProjectionX(Form("h_data_%d", ix));
 
-    TProfile *p_mc = p2_MPF_MC->ProfileY(Form("p_mc_%d", ix), ix, ix);
+    TProfile *p_mc = p2_MPF_MC->ProfileY(Form("p_mc_%d", ix), bin_start, bin_end);
     TProfile *p_mc_rebin = (TProfile*)p_mc->Rebin(n_pt, Form("p_mc_rebin_%d", ix), v_pt);
     TH1D *h_mc = p_mc_rebin->ProjectionX(Form("h_mc_%d", ix));
 
-    // TH1D *h_ratio = (TH1D*)h_data->Clone(Form("h_ratio_%d", ix));
-    // h_ratio->Divide(h_mc);
     TH1D *h_ratio = (TH1D*)h_mc->Clone(Form("h_ratio_%d", ix));
     h_ratio->Divide(h_data);
 
-    // Take also Direct Balance in order to make the re-binning to reco Jet pT on x-axis
-    TProfile *p_db_data = p2_DB->ProfileY(Form("p_db_data_%d", ix), ix, ix);
+    TProfile *p_db_data = p2_DB->ProfileY(Form("p_db_data_%d", ix), bin_start, bin_end);
     TProfile *p_db_data_rebin = (TProfile*)p_db_data->Rebin(n_pt, Form("p_db_data_rebin_%d", ix), v_pt);
     TH1D *h_db_data = p_db_data_rebin->ProjectionX(Form("h_db_data_%d", ix));
 
@@ -448,9 +472,9 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
     delete p_db_data_rebin;
     delete p_db_data;
 
-    // 3. IF canvas is full OR it's the last bin: Save, clean drawn objects, and increment canvas counter
-    if (ix % maxPadsPerCanvas == 0 || ix == nEtaBins) {
-        cGrid->SaveAs(Form("%s/%s/L2L3Res_Fits_Grid_run%d_part%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, iCanvas));          
+    // If canvas is full or it's the last bin: Save, clean drawn objects, and increment canvas counter
+    if ((ix + 1) % maxPadsPerCanvas == 0 || (ix + 1) == nCustomEtaBins) {
+          cGrid->SaveAs(Form("%s/%s/L2L3Res_Fits_Grid_run%d_part%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, iCanvas));        
         delete cGrid;
         cGrid = nullptr;
         iCanvas++;
