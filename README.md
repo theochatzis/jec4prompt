@@ -37,5 +37,5 @@ Using the standard JERC group [framework](https://gitlab.cern.ch/cms-jetmet/jerc
 # Descriptions of scripts
 - `L2L3Res.C`: Derivation of L2L3Res fit for calibrations. 
 - `L2L3ResTestRuns.C`: Makes usage of `L2L3Res.C` and loops the procedure over all runs of one era stored in `jecpcl`.
-
+- `combine_plots.py`: Python script which gathers plots from a directory and merged them into arrays of plots. Useful for results presentation.
  

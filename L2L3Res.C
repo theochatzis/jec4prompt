@@ -20,7 +20,7 @@ struct EtaBinConfig {
     std::vector<double> pt_bins;
 };
 
-void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photonjet") {
+void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet") {
   // Don't display any graphics on the screen
   gROOT->SetBatch(kTRUE);
   // --- READ JSON CONFIGURATION ---
@@ -102,8 +102,12 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   };
   // -------------------------------
   
-  gROOT->ProcessLine(Form(".! mkdir -p %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
-  gROOT->ProcessLine(Form(".! touch %s/%s", outputBaseDirectory.c_str(),basePath.Data()));
+  gROOT->ProcessLine(Form(".! mkdir -p %s/%s/%d", outputBaseDirectory.c_str(),basePath.Data(), run));
+  gROOT->ProcessLine(Form(".! touch %s/%s/%d", outputBaseDirectory.c_str(),basePath.Data(), run));
+  
+  gROOT->ProcessLine(Form(".! mkdir -p %s/%s/referenceBarrelVsPtTag/fits", outputBaseDirectory.c_str(),basePath.Data()));
+  gROOT->ProcessLine(Form(".! touch %s/%s/referenceBarrelVsPtTag/fits", outputBaseDirectory.c_str(),basePath.Data()));
+
   //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
   //gROOT->ProcessLine(Form(".! touch %s/L2L3Res", basePath.Data()));
 
@@ -232,11 +236,13 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   leg->Draw();
 
   // Save to pdf
-  c1->SaveAs(Form("%s/%s/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
+  c1->SaveAs(Form("%s/%s/referenceBarrelVsPtTag/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
   
   // ==========================================================
   // Production of L2L3Res text file & Fit Loop over |eta| bins
   // ==========================================================
+  gROOT->ProcessLine(Form(".! mkdir -p %s/%s/%d/fits", outputBaseDirectory.c_str(),basePath.Data(), run));
+  gROOT->ProcessLine(Form(".! touch %s/%s/%d/fits", outputBaseDirectory.c_str(),basePath.Data(), run));
   // Define JEC fit formula string
   
   TString fit_formula = "[2]*([3]*([4]+TMath::Log(max([0],min([1],x)))*([5]+TMath::Log(max([0],min([1],x)))*[6])+[7]/x))*1./([8]+[9]/x+[10]*log(x)/x+[11]*(pow(x/[12],[13])-1)/(pow(x/[12],[13])+1)+[14]*pow(x,-0.3051)+[15]*x)";
@@ -245,23 +251,6 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
   std::string txt_filename = Form("./txts/Summer24Prompt24JEC4PromptRun%d_V1_DATA_L2L3Residual_AK4PFPuppi.txt", run);//outputBaseDirectory.c_str(), basePath.Data(), run);
   std::ofstream out_file(txt_filename);
   out_file << "{ 1 JetEta 1 JetPt " << fit_formula << " Correction L2Relative}\n"; // header in .txt file with the parameters JetEta, JetPt and the fit function.
-  
-  int nEtaBins = p2_MPF->GetXaxis()->GetNbins();
-
-//   // --- Monitoring Plot Setup ---
-//   // Create multi-canvas grid for monitoring plots (square, fits roughly 4x4 or 5x5 grid based on typical nEtaBins)
-//   TCanvas *cGrid = new TCanvas("cGrid", "Fits Grid", 2000, 2000);
-//   int gridDim = std::ceil(std::sqrt(nEtaBins));
-//   cGrid->Divide(gridDim, gridDim);
-  // --- PAGINATED PLOT SETUP ---
-  int maxPadsPerCanvas = 16; // 4x4 grid
-  int gridX = 4;
-  int gridY = 4;
-  int iCanvas = 1;
-  int iPad = 1;
-  
-  TCanvas *cGrid = nullptr;
-  std::vector<TObject*> objectsToClean; // To hold drawn objects safely until canvas saves
   
   // Dedicated TGraphErrors to track chi2/ndf performance
   TGraphErrors *g_chi2ndf = new TGraphErrors();
@@ -295,17 +284,6 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
 
   // Loop over |eta| bins, rebinning data to keep uncertainties controlled
   for (int ix = 0; ix < nCustomEtaBins; ++ix) { 
-    // --- CREATE NEW CANVAS IF NEEDED ---
-    if (ix % maxPadsPerCanvas == 0) {
-        cGrid = new TCanvas(Form("cGrid_part%d", iCanvas), Form("Fits Grid Part %d", iCanvas), 2000, 2000);
-        cGrid->Divide(gridX, gridY);
-        iPad = 1; 
-    }
-
-    cGrid->cd(iPad);
-    gPad->SetLogx();
-    gPad->SetRightMargin(0.05); gPad->SetTopMargin(0.10);
-    
     // ----------------------------------------------------------
     // AGGREGATE INPUTS FOR CORRESPONDING ETA BIN
     // ----------------------------------------------------------
@@ -424,25 +402,37 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
     }
     
     // --- Formatting and Plotting ---
-    h_ratio->Draw("AXIS"); // Draw axes first
-    //h_ratio->Draw("P SAME"); // Draw original tag-based ratio
-    g_ratio_vs_jetpt->Draw("P SAME"); // Draw mapped jet-based ratio
+    TCanvas *cFit = new TCanvas(Form("cFit_%d", ix), "Fit Canvas", 800, 800);
+    gPad->SetLogx();
+    gPad->SetRightMargin(0.05); gPad->SetTopMargin(0.10);
+
+    // Apply dynamic title and Y-axis limits
+    h_ratio->SetTitle(Form("%1.3f < #eta < %1.3f;Reco Jet p_{T} (GeV);JES MC/Data", eta_min, eta_max));
+    if (min_ratio < 9999.0 && max_ratio > -9999.0) {
+        h_ratio->GetYaxis()->SetRangeUser(0.8 * min_ratio, 1.2 * max_ratio);
+    }
+
+    h_ratio->Draw("AXIS"); 
+    h_ratio->Draw("P SAME"); 
+    g_ratio_vs_jetpt->Draw("P SAME"); 
     func->SetLineColor(kBlue); func->SetLineWidth(3);
-    func->Draw("L SAME"); // Draw fit curve
+    func->Draw("L SAME"); 
     
-//   TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
-//   lt->AddEntry(h_ratio, "Tag-based", "pe");
-//   lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
-//   lt->AddEntry(func, "L2L3 Fit", "l");
-//   lt->Draw();
-    TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
-    lt->AddEntry(h_ratio, Form("%1.3f < #eta < %1.3f", eta_min, eta_max), "");
-    //lt->AddEntry(h_ratio, "Tag-based", "pe");
-    lt->AddEntry(g_ratio_vs_jetpt, "MPF", "pe");
+    TLegend *lt = new TLegend(0.15, 0.70, 0.45, 0.88); 
+    lt->SetFillStyle(0); lt->SetBorderSize(0); lt->SetTextSize(0.04);
+    lt->AddEntry(h_ratio, "Tag-based", "pe");
+    lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
     lt->AddEntry(func, "L2L3 Fit", "l");
     lt->Draw();
 
     TLine *ll = new TLine(); ll->SetLineStyle(kDashed); ll->DrawLine(gPad->GetUxmin(), 1.0, gPad->GetUxmax(), 1.0);
+    
+    // Save individual canvas. Formats numbers securely (e.g., +02.500 or -01.305)
+    TString plot_name = Form("%s/%s/%d/fits/L2L3Res_Fit_eta_%dp%d_to_%dp%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, 
+    int(floor(eta_min)), int(round((eta_min-floor(eta_min))*1000.)), 
+    int(floor(eta_max)), int(round((eta_max-floor(eta_max))*1000.))
+    );
+    cFit->SaveAs(plot_name);
 
     // --- Write Structured Text File Payload ---
     int n_params = func->GetNpar();
@@ -455,13 +445,12 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
     out_file << "\n";
     
     // Cleanup within loop to control memory usage
-    // CRITICAL: Do NOT delete drawn objects (lt, ll, func, g_ratio_vs_jetpt, h_ratio)
-    // here because cGrid needs them to be alive when SaveAs() is called!
-    //   delete lt;
-    //   delete ll;
-    //   delete func;
-    //   delete g_ratio_vs_jetpt;
-    //   delete h_ratio;
+    delete lt;
+    delete ll;
+    delete func;
+    delete g_ratio_vs_jetpt;
+    delete cFit;
+    delete h_ratio;
     delete h_mc;
     delete p_mc_rebin;
     delete p_mc;
@@ -471,16 +460,6 @@ void L2L3Res(int run = 398600, TString basePath="2025G", TString channel="photon
     delete h_db_data;
     delete p_db_data_rebin;
     delete p_db_data;
-
-    // If canvas is full or it's the last bin: Save, clean drawn objects, and increment canvas counter
-    if ((ix + 1) % maxPadsPerCanvas == 0 || (ix + 1) == nCustomEtaBins) {
-          cGrid->SaveAs(Form("%s/%s/L2L3Res_Fits_Grid_run%d_part%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, iCanvas));        
-        delete cGrid;
-        cGrid = nullptr;
-        iCanvas++;
-    }
-    
-    iPad++; // Increment pad for next iteration
   } // End of loop over eta bins
 
   // Close the text file and save the fit grid canvas
