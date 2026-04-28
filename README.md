@@ -37,16 +37,22 @@ Using the standard JERC group [framework](https://gitlab.cern.ch/cms-jetmet/jerc
 # Descriptions of scripts
 - `L2L3Res.C`: Derivation of L2L3Res fit for calibrations. 
 - `L2L3ResTestRuns.C`: Makes usage of `L2L3Res.C` and loops the procedure over all runs of one era stored in `jecpcl`.
-- 
 
 
 # Plotting scripts
 ## `combine_plots.py`( Combine plots in one page )
 Python script which gathers plots from a directory and merged them into arrays of plots. Useful for results presentation.
 
-Need to define in the script:
-- `target_directory`: This the directory containing the plots. All of them will be combined.
-- `create_grids(...)` function is using a maximum number of columns `cols` , and rows `rows` per image. You can set those in the script as well. Default is 4x4. That means if there are more than 16 plots it will create more plots. 
+```bash
+python3 combine_plots.py /path/to/input/images/ [options]
+```
+
+*Arguments*
+- `dir` (Required): The input directory containing the .png plots to combine.
+- `-n`, `--name` : The filename prefix for the generated grids. Default is "Grid_Summary_Part".
+- `-c`, `--cols` : Number of columns in the output grid. Default is 5.
+- `-r`, `--rows` : Number of rows in the output grid. Default is 5.
+- `-p`, `--pattern` : File search pattern. Default is "L2L3Res_Fit_eta_*.png".
 
 ## CMS TDR Style Macro (`tdrstyle_mod22.C`)
 
