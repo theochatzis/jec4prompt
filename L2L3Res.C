@@ -5,6 +5,7 @@
 #include "TLegend.h"
 #include "TLine.h"
 #include "TCanvas.h"
+#include "TVirtualFitter.h"
 
 // JSON headers
 #include <boost/property_tree/ptree.hpp>
@@ -386,9 +387,12 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     func->SetParameter(14, -0.17906);
     func->SetParameter(15, -0.00002410);
 
-    // Perform fit against mapped TGraphErrors. Q=Quiet, R=Range.
-    if (n_points >= 4) { // Require minimum points for a robust multiparameter fit
-        g_ratio_vs_jetpt->Fit(func, "RQ"); 
+   // Uncertainty band
+    TH1D *h_band = nullptr;
+
+    // Perform fit against mapped TGraphErrors. Q=Quiet, R=Range, S=Save result.
+    if (n_points >= 4) { 
+        TFitResultPtr r = g_ratio_vs_jetpt->Fit(func, "RQS"); 
         
         // Fill Chi2/ndf monitoring graph
         if (func->GetNDF() > 0) {
@@ -397,6 +401,37 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
             g_chi2ndf->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, 0.0);
             iPointChi2++;
         }
+
+        // Generate the uncertainty band from TFitResult 
+        h_band = new TH1D(Form("h_band_%d", ix), "", 500, xmin, xmax);
+        
+        // Check if the fit result actually exists in memory
+        if (r.Get()) {
+            int n_bins = h_band->GetNbinsX();
+            std::vector<double> x_vals(n_bins);
+            std::vector<double> ci_vals(n_bins);
+            
+            // Get the X coordinates from our empty band histogram
+            for (int i = 0; i < n_bins; ++i) {
+                x_vals[i] = h_band->GetBinCenter(i + 1);
+            }
+            
+            // Extract the 68% (1-sigma) intervals directly from the fit result pointer
+            r->GetConfidenceIntervals(n_bins, 1, 1, x_vals.data(), ci_vals.data(), 0.68, false);
+            
+            // Populate the band histogram
+            for (int i = 0; i < n_bins; ++i) {
+                h_band->SetBinContent(i + 1, func->Eval(x_vals[i])); // Center the band on the fit curve
+                h_band->SetBinError(i + 1, ci_vals[i]);              // Expand by the uncertainty error
+            }
+        }
+        
+        // Style the band
+        h_band->SetStats(kFALSE);
+        h_band->SetFillColor(kOrange); 
+        //h_band->SetFillStyle(3001);
+        h_band->SetMarkerSize(0); 
+        h_band->SetLineWidth(0);  
     } else {
         std::cerr << Form("Warning: Not enough points for fit in bin %d (%d points)\n", ix, n_points);
     }
@@ -418,10 +453,16 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     ll->SetLineStyle(kDashed); ll->SetLineColor(kGray+1);
     ll->DrawLine(xmin, 1.0, xmax, 1.0);
 
+    // Draw uncertainty band
+    // "E3" draws a filled error band
+    if (h_band) {
+       h_band->Draw("E3 SAME");
+    }
+
     // Draw data points using tdrDraw for consistent CMS styling
     // Tag-based (black open squares)
     tdrDraw(h_ratio, "P", kOpenSquare, kBlack, kSolid, -1, kNone, 0); 
-    // Mapped Jet-based (red full circles)
+    // Mapped Jet-based (black full circles)
     tdrDraw(g_ratio_vs_jetpt, "P", kFullCircle, kBlack, kSolid, -1, kNone, 0); 
     
     // Draw the fit
@@ -434,7 +475,9 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     lt->AddEntry(h_ratio, "Tag-based", "pe");
     lt->AddEntry(g_ratio_vs_jetpt, "Mapped Jet-based", "pe");
     lt->AddEntry(func, "L2L3 Fit", "l");
-
+    if (h_band) {
+        lt->AddEntry(h_band, "Fit Unc. (1#sigma)", "f");
+    }
     // Add standard CMS TLatex for the specific eta bin info
     TLatex *tex_eta = new TLatex();
     tex_eta->SetNDC();
@@ -460,7 +503,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     out_file << "\n";
     
     // Cleanup within loop to control memory usage
-    delete tex_eta; delete h_dummy;
+    delete tex_eta; delete h_dummy; delete h_band; 
     delete lt; delete ll; delete func; delete g_ratio_vs_jetpt; delete h_ratio;
     delete h_mc; delete p_mc_rebin; delete p_mc; delete h_data; delete p_data_rebin; delete p_data;
     delete h_db_data; delete p_db_data_rebin; delete p_db_data;
