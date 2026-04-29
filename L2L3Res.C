@@ -14,6 +14,7 @@
 
 #include "tdrstyle_mod22.C"
 
+
 // --- Helper Struct for Eta-dependent Pt Binning ---
 struct EtaBinConfig {
     double abs_eta_min;
@@ -21,7 +22,8 @@ struct EtaBinConfig {
     std::vector<double> pt_bins;
 };
 
-void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet") {
+
+void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet", bool drawClosure=true) {
   // Don't display any graphics on the screen
   gROOT->SetBatch(kTRUE);
   // --- READ JSON CONFIGURATION ---
@@ -617,7 +619,99 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   TLine *lChi2 = new TLine(); lChi2->SetLineStyle(kDashed); lChi2->DrawLine(-5.191, 1.0, 5.191, 1.0);
   cChi2->SaveAs(Form("%s/%s/%d/L2L3Res_Chi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
 
+  
+  // ==========================================================
+  // FINAL CLOSURE PLOT: Corrected Data vs MC (via TXT File)
+  // ==========================================================
+  if (drawClosure) {
+      std::cout << "Generating Closure Plot from TXT payload..." << std::endl;
 
+      // Read and parse the generated L2L3Res text file
+      std::ifstream in_file(txt_filename);
+      std::string line;
+      std::getline(in_file, line); // Skip the header line
+
+      struct JECLine {
+          double eta_min, eta_max;
+          std::vector<double> params;
+      };
+      std::vector<JECLine> jec_payload;
+
+      while (std::getline(in_file, line)) {
+          std::istringstream iss(line);
+          double e_min, e_max, x_min, x_max;
+          int n_tok;
+          
+          if (!(iss >> e_min >> e_max >> n_tok >> x_min >> x_max)) continue;
+          
+          JECLine jl;
+          jl.eta_min = e_min;
+          jl.eta_max = e_max;
+          
+          double p_val;
+          while (iss >> p_val) {
+              jl.params.push_back(p_val);
+          }
+          jec_payload.push_back(jl);
+      }
+      in_file.close();
+
+      TF1 *func_eval = new TF1("func_eval", fit_formula.Data(), xmin, xmax);
+
+      // Setup the Canvas
+      TCanvas *cClosure = tdrCanvas("cClosure", h_eta_ref, 8, 0, kSquare);
+      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0); 
+
+      TLegend *leg_clos = tdrLeg(0.40, 0.15, 0.90, 0.35);
+      leg_clos->SetNColumns(2);
+
+      for (size_t i = 0; i < pt_cuts.size(); ++i) {
+          double pt_cut = pt_cuts[i];
+          
+          int y_bin_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
+          int y_bin_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
+
+          // Draw MC Truth
+          TProfile *p_mc_clos = p2_MPF_MC->ProfileX(Form("p_mc_clos_%d", (int)pt_cut), y_bin_start, y_bin_end);
+          TProfile *p_mc_clos_rebin = (TProfile*)p_mc_clos->Rebin(nCustomEtaBins, Form("p_mc_clos_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+          tdrDraw(p_mc_clos_rebin, "HIST", kNone, mc_colors[i], kSolid, mc_colors[i], 0, 0);
+
+          // Extract Raw Data
+          TProfile *p_data_clos = p2_MPF->ProfileX(Form("p_data_clos_%d", (int)pt_cut), y_bin_start, y_bin_end);
+          TProfile *p_data_clos_rebin = (TProfile*)p_data_clos->Rebin(nCustomEtaBins, Form("p_data_clos_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+          TH1D *h_data_corr = p_data_clos_rebin->ProjectionX(Form("h_data_corr_%d", (int)pt_cut));
+          
+          // Apply the payload correction bin-by-bin
+          for (int bx = 1; bx <= nCustomEtaBins; ++bx) {
+              double eta_center = h_data_corr->GetBinCenter(bx);
+              
+              for (const auto& jl : jec_payload) {
+                  if (eta_center > jl.eta_min && eta_center < jl.eta_max) {
+                      if (!jl.params.empty()) {
+                          for(size_t p_idx = 0; p_idx < jl.params.size(); ++p_idx) {
+                              func_eval->SetParameter(p_idx, jl.params[p_idx]);
+                          }
+                          
+                          double effective_pt = pt_cut * 1.20; 
+                          double correction_factor = func_eval->Eval(effective_pt);
+                          
+                          h_data_corr->SetBinContent(bx, h_data_corr->GetBinContent(bx) * correction_factor);
+                          h_data_corr->SetBinError(bx, h_data_corr->GetBinError(bx) * correction_factor);
+                      }
+                      break; 
+                  }
+              }
+          }
+          
+          tdrDraw(h_data_corr, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
+
+          leg_clos->AddEntry(h_data_corr, Form("Corr. Data p_{T} > %d", (int)pt_cut), "pe");
+          leg_clos->AddEntry(p_mc_clos_rebin, "MC", "l");
+      }
+
+      cClosure->SaveAs(Form("%s/%s/%d/L2L3Res_Closure_TXT_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
+      delete func_eval;
+  }
   
   // CLEANUP SECTION ( to avoid memory leaks)
   // Delete monitoring stuff
@@ -630,7 +724,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   delete h; 
   delete l;
 
-  // elete the histograms/profiles created
+  // delete the histograms/profiles created
   delete p1_MPF;
   delete p1_MPF_rebin;
   // delete other projections/clones...
@@ -639,7 +733,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   f->Close();    delete f;
   fm->Close();   delete fm;
   fmOffline->Close(); delete fmOffline;
-
+  
   // combine eta bins plots in grids
   try {
       gROOT->ProcessLine(Form(".! python3 combine_plots.py %s/%s/%d/fits --pattern L2L3Res_Fit_eta_pos* --name Grid_L2L3Res_Fit_eta_pos", outputBaseDirectory.c_str(),basePath.Data(), run));
