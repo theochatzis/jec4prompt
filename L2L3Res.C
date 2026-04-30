@@ -6,6 +6,7 @@
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TVirtualFitter.h"
+#include "utils.C"
 
 // JSON headers
 #include <boost/property_tree/ptree.hpp>
@@ -21,7 +22,6 @@ struct EtaBinConfig {
     double abs_eta_max;
     std::vector<double> pt_bins;
 };
-
 
 void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet", bool drawClosure=true) {
   // Don't display any graphics on the screen
@@ -55,6 +55,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   double minimum_luminosity = propertyTree.get<double>("global.minimum_luminosity", 0.0);
   
   if (luminosity < minimum_luminosity){
+    std::cout << Form("Won't derive JECs. Run has luminosity smaller than :%.3f" , minimum_luminosity) << std::endl;
     return;
   }
 
@@ -231,11 +232,24 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   //TH1D *h1_MPFOffline_MC_corr = (TH1D*)h1_MPFOffline_MC->Clone("h1_MPFOffline_MC_corr");
   //h1_MPFOffline_MC_corr->Divide(h1corrm);
   
-  TH1D *h = tdrHist("h","JES",jes_limitMin,jes_limitMax,"p_{T,#gamma} (GeV)",xmin,xmax);
-  lumi_136TeV = Form("Run %d, %.2f fb^{-1}", run, luminosity);
-  TCanvas *c1 = tdrCanvas("c1",h,8,11,kSquare);
+  // Project TProfiles to TH1D before dividing for correct error propagation
+  TH1D *h1_ratio = (TH1D*)h1_MPF->Clone("h1_ratio");
+  TH1D *h1_mc_proj = (TH1D*)h1_MPF_MC->Clone("h1_mc_proj");
+  h1_ratio->Divide(h1_mc_proj);
+
+  // Create top and bottom dummy histograms for tdrDiCanvas
+  TH1D *h_up = tdrHist("h_up", "JES", jes_limitMin, jes_limitMax, "", xmin, xmax);
+  TH1D *h_dw = tdrHist("h_dw", "Data / MC", 0.95, 1.05, "p_{T,#gamma} (GeV)", xmin, xmax);
+
+  lumi_136TeV = Form("Run%d, %.2f fb^{-1}", run, luminosity);
+  TCanvas *c1 = tdrDiCanvas("c1", h_up, h_dw, 8, 11);
+
+  // --- TOP PAD ---
+  c1->cd(1);
   gPad->SetLogx();
   //drawCustomLogXLabels(h);
+  TLine *l_dw = new TLine(xmin, 1.0, xmax, 1.0);
+  l_dw->SetLineStyle(kDashed); l_dw->SetLineColor(kGray+1); l_dw->Draw("same");
 
   TLine *l = new TLine();
   l->SetLineStyle(kDashed);
@@ -243,11 +257,11 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   l->DrawLine(xmin,1,xmax,1);
 
   tdrDraw(p1_MPF_MC_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
-  tdrDraw(p1_MPFOffline_MC,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
+  //tdrDraw(p1_MPFOffline_MC,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
   //tdrDraw(h1_MPFOffline_MC_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
-  tdrDraw(p1_MPF,"Pz",kOpenSquare,kRed-9,kSolid,-1,kNone,0);
-  tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
-  tdrDraw(h1_MPF_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
+  //tdrDraw(p1_MPF,"Pz",kOpenSquare,colorData,kSolid,-1,kNone,0);
+  tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0); //tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
+  //tdrDraw(h1_MPF_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
   
   // Make legends
   TLegend *leg = new TLegend(0.55, 0.70, 0.88, 0.90);
@@ -256,13 +270,20 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   leg->SetTextFont(42);   // Standard CMS TDR font
   leg->SetTextSize(0.04);
 
-  leg->AddEntry(h1_MPF_cut, "Data (fit region)", "pe");
-  leg->AddEntry(p1_MPF_rebin, "Data (rebinned)", "pe");
-  leg->AddEntry(p1_MPF, "Data (unrebinned)", "pe");
-  leg->AddEntry(p1_MPFOffline_MC, "MC Offline", "le");
+  //leg->AddEntry(h1_MPF_cut, "Data (fit region)", "pe");
+  leg->AddEntry(p1_MPF_rebin, "Data", "pe");
+  //leg->AddEntry(p1_MPF, "Data (unrebinned)", "pe");
+  //leg->AddEntry(p1_MPFOffline_MC, "MC Offline", "le");
   leg->AddEntry(p1_MPF_MC_rebin, "MC Online", "le");
   
   leg->Draw();
+  
+  // --- BOTTOM PAD (RATIO) ---
+  c1->cd(2);
+  gPad->SetLogx();
+
+
+  tdrDraw(h1_ratio, "Pz", kFullCircle, colorData, kSolid, -1, kNone, 0);
 
   // Save to pdf
   c1->SaveAs(Form("%s/%s/referenceBarrelVsPtTag/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
@@ -336,7 +357,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   // Dedicated TGraphErrors to track chi2/ndf performance
   TGraphErrors *g_chi2ndf = new TGraphErrors();
   g_chi2ndf->SetName("g_chi2ndf");
-  g_chi2ndf->SetTitle(Form("#chi^{2}/ndf of L2L3Res Fit (Run %d);Probe #eta;#chi^{2}/ndf", run));
+  g_chi2ndf->SetTitle(Form("#chi^{2}/ndf of L2L3Res Fit (Run%d);Probe #eta;#chi^{2}/ndf", run));
   g_chi2ndf->SetMarkerStyle(kFullCircle);
   g_chi2ndf->SetMarkerColor(kBlue);
   g_chi2ndf->SetLineColor(kBlue);
@@ -422,6 +443,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
         double pt_tag = h_ratio->GetBinCenter(b);
         double ratio = h_ratio->GetBinContent(b);
         double ratio_err = h_ratio->GetBinError(b);
+        double data_err = h_data-> GetBinError(b);
         double r_data = h_db_data->GetBinContent(b);
         
         if (ratio > 0 && r_data > 0) {
@@ -434,7 +456,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
             if (ratio > max_ratio) max_ratio = ratio;
 
             // --- Apply Precision Filter (< precision tolerance ) ---
-            if ((ratio_err / ratio) < precision_tolerance && (ratio_err / ratio) > 1e-5) {
+            if ((ratio_err / ratio) < precision_tolerance && data_err > 1e-5) {
                 g_fit_graph->SetPoint(n_fit_points, pt_jet, ratio);
                 g_fit_graph->SetPointError(n_fit_points, 0.0, ratio_err);
                 
@@ -705,8 +727,8 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
           
           tdrDraw(h_data_corr, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
 
-          leg_clos->AddEntry(h_data_corr, Form("Corr. Data p_{T} > %d", (int)pt_cut), "pe");
-          leg_clos->AddEntry(p_mc_clos_rebin, "MC", "l");
+          leg_clos->AddEntry(h_data_corr, "Corr. Data ", "pe");
+          leg_clos->AddEntry(p_mc_clos_rebin, Form("MC , p_{T} > %d", (int)pt_cut), "le");
       }
 
       cClosure->SaveAs(Form("%s/%s/%d/L2L3Res_Closure_TXT_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
@@ -721,7 +743,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
 
   // Delete the canvas
   delete c1;
-  delete h; 
+  delete h_up; delete h_dw; 
   delete l;
 
   // delete the histograms/profiles created

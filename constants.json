@@ -4,7 +4,7 @@
     "minimum_luminosity": 0.250,
     
     "_comment_paths": "Base directories for storing outputs and fetching run metadata/histograms",
-    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testFitsNew2/",
+    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testFitLatest/",
     "jsonWithLumis_path": "/eos/user/j/jecpcl/public/jec4prompt/metadata/grouping.json",
     "runsDirectoriesBase": "/eos/user/j/jecpcl/public/jec4prompt/runs/",
     
