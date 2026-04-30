@@ -6,6 +6,8 @@
 #include "TLine.h"
 #include "TCanvas.h"
 #include "TVirtualFitter.h"
+
+// Custom utils
 #include "utils.C"
 
 // JSON headers
@@ -127,9 +129,6 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   // -------------------------------
   gROOT->ProcessLine(Form(".! mkdir -p %s/%s/%d", outputBaseDirectory.c_str(),basePath.Data(), run));
   gROOT->ProcessLine(Form(".! touch %s/%s/%d", outputBaseDirectory.c_str(),basePath.Data(), run));
-  
-  gROOT->ProcessLine(Form(".! mkdir -p %s/%s/referenceBarrelVsPtTag/", outputBaseDirectory.c_str(),basePath.Data()));
-  gROOT->ProcessLine(Form(".! touch %s/%s/referenceBarrelVsPtTag/", outputBaseDirectory.c_str(),basePath.Data()));
 
   //gROOT->ProcessLine(Form(".! mkdir %s/L2L3Res", basePath.Data());
   //gROOT->ProcessLine(Form(".! touch %s/L2L3Res", basePath.Data()));
@@ -174,8 +173,11 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   //TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
   TProfile2D *p2_DB = (TProfile2D*)f->Get(profileNameDB.c_str()); assert(p2_DB);
 
+
+  // Make reference plots before the corrections.
   // Initial fit at |eta|<1.305 needed for scaling dijet data to L2L3Res level
   double refEtaLimit = propertyTree.get<double>("global.ref_eta_limit", 1.305);
+
   int i1 = p2_MPF->GetXaxis()->FindBin(-refEtaLimit);
   int i2 = p2_MPF->GetXaxis()->FindBin(+refEtaLimit)-1;
   // (Repeat for the MC and Offline MC bin finders)
@@ -192,7 +194,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   double eta1mOffline = p2_MPFOffline_MC->GetXaxis()->GetBinLowEdge(i1m);
   double eta2mOffline = p2_MPFOffline_MC->GetXaxis()->GetBinLowEdge(i2m)+1;
 
-  cout << Form("Fitting %1.3f #LT eta < %1.3f reference region\n",eta1,eta2);
+//   cout << Form("Fitting %1.3f #LT eta < %1.3f reference region\n",eta1,eta2);
   
 //   std::string txt_filename = Form("%s/%s/Summer22EE-22Sep2023_Run%d_%s_DATA_L2L3Residual_AK4PFPuppi.txt", outputBaseDirectory.c_str(), basePath.Data(), run, basePath.Data());
 //   std::ofstream out_file(txt_filename);
@@ -209,22 +211,25 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   TProfile *p1_MPF = p2_MPF->ProfileY("p1_MPF",i1,i2);
   TProfile *p1_MPF_rebin = (TProfile*)p1_MPF->Rebin(n13_ref,"p1_MPF_rebinned",v13_ref);
   TH1D *h1_MPF = p1_MPF_rebin->ProjectionX("h1_MPF");
-  TH1D *h1_MPF_cut = (TH1D*)h1_MPF->Clone("h1_MPF_cut");
-  h1_MPF_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+  h1_MPF->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+//   TH1D *h1_MPF_cut = (TH1D*)h1_MPF->Clone("h1_MPF_cut");
+//   h1_MPF_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   TProfile *p1_MPF_MC = p2_MPF_MC->ProfileY("p1_MPF_MC",i1m,i2m);
   TProfile *p1_MPF_MC_rebin = (TProfile*)p1_MPF_MC->Rebin(n13_ref,"p1_MPF_MC_rebinned",v13_ref);
   //TProfile *p1_MPF_MC_rebin = (TProfile*)p1_MPF_MC->Clone("p1_MPF_MC_rebinned");
   TH1D *h1_MPF_MC = p1_MPF_MC_rebin->ProjectionX("h1_MPF_MC");
-  TH1D *h1_MPF_MC_cut = (TH1D*)h1_MPF_MC->Clone("h1_MPF_MC_cut");
-  h1_MPF_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+  h1_MPF_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+//   TH1D *h1_MPF_MC_cut = (TH1D*)h1_MPF_MC->Clone("h1_MPF_MC_cut");
+//   h1_MPF_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   TProfile *p1_MPFOffline_MC = p2_MPFOffline_MC->ProfileY("p1_MPFOffline_MC",i1mOffline,i2mOffline);
   //TProfile *p1_MPFOffline_MC_rebin = (TProfile*)p1_MPFOffline_MC->Rebin(n13_ref,"p1_MPFOffline_MC_rebinned",v13_ref);
   //TProfile *p1_MPFOffline_MC_rebin = (TProfile*)p1_MPFOffline_MC->Clone("p1_MPFOffline_MC_rebinned");
   TH1D *h1_MPFOffline_MC = p1_MPFOffline_MC->ProjectionX("h1_MPFOffline_MC");
-  TH1D *h1_MPFOffline_MC_cut = (TH1D*)h1_MPFOffline_MC->Clone("h1_MPFOffline_MC_cut");
-  h1_MPFOffline_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+  h1_MPFOffline_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+//   TH1D *h1_MPFOffline_MC_cut = (TH1D*)h1_MPFOffline_MC->Clone("h1_MPFOffline_MC_cut");
+//   h1_MPFOffline_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
 
   // Un-do the jec correction in offline
   //TProfile *p1corrm = p2corrm->ProfileY("pcorrm",i1m,i2m);
@@ -236,25 +241,39 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   TH1D *h1_ratio = (TH1D*)h1_MPF->Clone("h1_ratio");
   TH1D *h1_mc_proj = (TH1D*)h1_MPF_MC->Clone("h1_mc_proj");
   h1_ratio->Divide(h1_mc_proj);
+  
+  auto [h1_ratio_min, h1_ratio_max] = GetHistMinMaxWithErrors(h1_ratio);
 
   // Create top and bottom dummy histograms for tdrDiCanvas
-  TH1D *h_up = tdrHist("h_up", "JES", jes_limitMin, jes_limitMax, "", xmin, xmax);
-  TH1D *h_dw = tdrHist("h_dw", "Data / MC", 0.95, 1.05, "p_{T,#gamma} (GeV)", xmin, xmax);
+  TH1D *h_up = tdrHist("h_up", "JES", jes_limitMin, jes_limitMax, "", fit_region_min, fit_region_max);
+  TH1D *h_dw = tdrHist("h_dw", "Data / MC", h1_ratio_min*0.95, h1_ratio_max*1.05, "p_{T,#gamma} (GeV)", fit_region_min, fit_region_max);
 
   lumi_136TeV = Form("Run%d, %.2f fb^{-1}", run, luminosity);
   TCanvas *c1 = tdrDiCanvas("c1", h_up, h_dw, 8, 11);
+  
+  
 
   // --- TOP PAD ---
   c1->cd(1);
   gPad->SetLogx();
+
+  TLatex *tex_eta = new TLatex();
+  tex_eta->SetNDC();
+  tex_eta->SetTextFont(42);
+  tex_eta->SetTextSize(0.045);
+  // Alignment 11: 1 = Left aligned horizontally, 1 = Bottom aligned vertically
+  tex_eta->SetTextAlign(11); 
+  // Draw at X=0.16 (aligned with the Y-axis) and Y=0.95 (in the top margin)
+  tex_eta->DrawLatex(0.16, 0.95, Form("|#eta| < %1.1f", 1.3));
+  
   //drawCustomLogXLabels(h);
   TLine *l_dw = new TLine(xmin, 1.0, xmax, 1.0);
-  l_dw->SetLineStyle(kDashed); l_dw->SetLineColor(kGray+1); l_dw->Draw("same");
+  l_dw->SetLineStyle(kDashed); l_dw->SetLineColor(kBlack); l_dw->Draw("same");
 
   TLine *l = new TLine();
   l->SetLineStyle(kDashed);
-  l->SetLineColor(kGray+1);
-  l->DrawLine(xmin,1,xmax,1);
+  l->SetLineColor(kBlack);
+  l->DrawLine(fit_region_min,1,fit_region_max,1);
 
   tdrDraw(p1_MPF_MC_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
   //tdrDraw(p1_MPFOffline_MC,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
@@ -282,11 +301,11 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   c1->cd(2);
   gPad->SetLogx();
 
-
+  l->DrawLine(fit_region_min,1,fit_region_max,1);
   tdrDraw(h1_ratio, "Pz", kFullCircle, colorData, kSolid, -1, kNone, 0);
 
   // Save to pdf
-  c1->SaveAs(Form("%s/%s/referenceBarrelVsPtTag/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
+  c1->SaveAs(Form("%s/%s/%d/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
   
   
   // JES vs eta for slices of pT
@@ -298,15 +317,24 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   std::vector<int> mc_colors = {kGray+1, kRed-9, kBlue-9};
 
   // Create dummy for the eta-response plot
-  TH1D *h_eta_ref = tdrHist("h_eta_ref", "JES", 0.85, 1.15, "#eta", -5.2, 5.2);
-  TCanvas *cEta = tdrCanvas("cEta", h_eta_ref, 8, 0, kSquare);
+  TH1D *h_eta_ref_up = tdrHist("h_eta_ref_up", "JES", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
+  double h_eta_ref_min_yaxis = 0.95;
+  double h_eta_ref_max_yaxis = 1.05;
+  TH1D *h_eta_ref_dw = tdrHist("h_eta_ref_dw", "Data / MC", h_eta_ref_min_yaxis, h_eta_ref_max_yaxis, "#eta", -5.2, 5.2);
+  TCanvas *cEta = tdrDiCanvas("cEta", h_eta_ref_up, h_eta_ref_dw, 8, 11);
   
+  // --- TOP PAD ---
+  cEta->cd(1);
   TLine *line_ref = new TLine();
-  line_ref->SetLineStyle(kDashed); line_ref->SetLineColor(kGray+1);
+  line_ref->SetLineStyle(kDashed); line_ref->SetLineColor(kBlack);
   line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
 
-  TLegend *leg_eta = tdrLeg(0.40, 0.15, 0.90, 0.35);
+  TLegend *leg_eta = tdrLeg(0.15, 0.012, 0.90, 0.22);
   leg_eta->SetNColumns(2); // Two columns to separate Data and MC nicely
+  
+  // --- BOTTOM PAD ---
+  cEta->cd(2);
+  line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
 
   for (size_t i = 0; i < pt_cuts.size(); ++i) {
       double pt_cut = pt_cuts[i];
@@ -315,25 +343,45 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
       int y_bin_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
       int y_bin_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
 
-      // Project and REBIN Data
-      TProfile *p_eta_data = p2_MPF->ProfileX(Form("p_eta_data_%d", (int)pt_cut), y_bin_start, y_bin_end);
-      TProfile *p_eta_data_rebin = (TProfile*)p_eta_data->Rebin(nCustomEtaBins, Form("p_eta_data_rebin_%d", (int)pt_cut), custom_eta_edges.data());
-      tdrDraw(p_eta_data_rebin, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
-
       // Project and REBIN MC
       TProfile *p_eta_mc = p2_MPF_MC->ProfileX(Form("p_eta_mc_%d", (int)pt_cut), y_bin_start, y_bin_end);
       TProfile *p_eta_mc_rebin = (TProfile*)p_eta_mc->Rebin(nCustomEtaBins, Form("p_eta_mc_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+
+      // Project and REBIN Data
+      TProfile *p_eta_data = p2_MPF->ProfileX(Form("p_eta_data_%d", (int)pt_cut), y_bin_start, y_bin_end);
+      TProfile *p_eta_data_rebin = (TProfile*)p_eta_data->Rebin(nCustomEtaBins, Form("p_eta_data_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+      
+      // Calculate Data/MC ratio
+      TH1D *h_eta_data = p_eta_data_rebin->ProjectionX(Form("p_eta_data_rebin_%d", (int)pt_cut));
+      TH1D *h_eta_mc = p_eta_mc_rebin->ProjectionX(Form("p_eta_mc_rebin_%d", (int)pt_cut));
+      TH1D *h_eta_ratio = (TH1D*) h_eta_data -> Clone(Form("h_eta_ratio_%d", (int)pt_cut));
+      h_eta_ratio->Divide(h_eta_mc);
+      
+      // automatic y-axis in ratio
+      auto [h1_eta_ref_ratio_min, h1_eta_ref_ratio_max] = GetHistMinMaxWithErrors(h_eta_ratio);
+      h_eta_ref_min_yaxis = std::min(h_eta_ref_min_yaxis, h1_eta_ref_ratio_min*0.95);
+      h_eta_ref_max_yaxis = std::max(h_eta_ref_max_yaxis, h1_eta_ref_ratio_max*1.05);
+      h_eta_ref_dw -> GetYaxis() -> SetRangeUser(h_eta_ref_min_yaxis, h_eta_ref_max_yaxis);
+      //--- Top pad
+      cEta->cd(1);
+
+      tdrDraw(p_eta_data_rebin, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
       tdrDraw(p_eta_mc_rebin, "HIST", kNone, mc_colors[i], kSolid, mc_colors[i], 0, 0);
       
       // Pass the rebinned and styled objects to the legend, not the original ones!
       leg_eta->AddEntry(p_eta_data_rebin, "Data", "pe");
-      leg_eta->AddEntry(p_eta_mc_rebin, Form("MC , p^{tag}_{T} > %d GeV", (int)pt_cut), "l");
+      leg_eta->AddEntry(p_eta_mc_rebin, Form("MC   p^{tag}_{T} > %d GeV", (int)pt_cut), "le");
+      
+      //--- Bottom pad
+      cEta->cd(2);
+      tdrDraw(h_eta_ratio, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
 
-      //leg_eta->AddEntry(p_eta_data, "Data", "pe");
-      //leg_eta->AddEntry(p_eta_mc, Form("MC , p^{tag}_{T} > %d GeV", (int)pt_cut), "l");
   }
 
-  cEta->SaveAs(Form("%s/%s/referenceBarrelVsPtTag/JES_vs_Eta_Slices_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run));
+
+
+
+  cEta->SaveAs(Form("%s/%s/%d/JES_vs_Eta_Slices_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
   
   // ==========================================================
   // Production of L2L3Res text file & Fit Loop over |eta| bins
@@ -343,7 +391,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   // Define JEC fit formula string
   //TString fit_formula = "[2]*([3]*([4]+TMath::Log(max([0],min([1],x)))*([5]+TMath::Log(max([0],min([1],x)))*[6])+[7]/x))*1./([8]+[9]/x+[10]*log(x)/x+[11]*(pow(x/[12],[13])-1)/(pow(x/[12],[13])+1)+[14]*pow(x,-0.3051)+[15]*x)";
   // [0]=Low pT Clamp, [1]=High pT Clamp, [2]=Scale p0, [3]=Log Slope p1, [4]=Inverse pT offset p2
-  //TString fit_formula = "[2] + [3]*log(max([0],min([1],x))) + [4]/max([0],min([1],x))";
+  //TString fit_formula = "[2] + [3]*log(max([0],min([1],x))) + )";
   // [0]=Low pT Clamp, [1]=High pT Clamp, [2]=Scale p0, [3]=Log p1, [4]=Log^2 p2, [5]=Inverse pT p3
   TString fit_formula = "[2] + [3]*log(max([0],min([1],x))) + [4]*pow(log(max([0],min([1],x))), 2) + [5]/max([0],min([1],x))";
   
@@ -482,16 +530,12 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     if (n_fit_points >= 4) {
         func->FixParameter(0, pt_min_fit);
         func->FixParameter(1, pt_max_fit);
+
     } else { 
         // Fallback if bin is empty or statistically starved
         func->FixParameter(0, propertyTree.get<double>(chPath + ".fallback_clamp_min", 30.0));
         func->FixParameter(1, propertyTree.get<double>(chPath + ".fallback_clamp_max", 140.0)); 
     }
-    
-    // // Initialize standard Log-Inverse seeds
-    // func->SetParameter(2, 1.0); // p0 
-    // func->SetParameter(3, 0.0); // p1
-    // func->SetParameter(4, 0.0); // p2
     
     // Initialize Quadratic Log-Inverse seeds
     func->SetParameter(2, 1.0); // p0 (Scale)
@@ -557,12 +601,12 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     TH1D *h_dummy = tdrHist(Form("h_dummy_%d", ix), "JES MC/Data", y_min, y_max, "Reco Jet p_{T} (GeV)", xmin, xmax);
     
     // Create the TDR canvas (Period 8 = 13.6 TeV, Pos 11 = Top-Left CMS label)
-    TCanvas *cFit = tdrCanvas(Form("cFit_%d", ix), h_dummy, 8, 0, kSquare);
+    TCanvas *cFit = tdrCanvas(Form("cFit_%d", ix), h_dummy, 8, 33, kSquare);
     gPad->SetLogx();
 
     // Draw a dashed line at exactly 1.0 for reference
     TLine *ll = new TLine(); 
-    ll->SetLineStyle(kDashed); ll->SetLineColor(kGray+1);
+    ll->SetLineStyle(kDashed); ll->SetLineColor(kBlack);
     ll->DrawLine(xmin, 1.0, xmax, 1.0);
 
     // Draw uncertainty band
@@ -639,7 +683,7 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   TCanvas *cChi2 = tdrCanvas("cChi2", hDummyChi2, 8, 0, kRectangular); // tdrCanvas creates the canvas for you!
   g_chi2ndf->Draw("PZ SAME");
   TLine *lChi2 = new TLine(); lChi2->SetLineStyle(kDashed); lChi2->DrawLine(-5.191, 1.0, 5.191, 1.0);
-  cChi2->SaveAs(Form("%s/%s/%d/L2L3Res_Chi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
+  cChi2->SaveAs(Form("%s/%s/%d/fits/L2L3Res_Chi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
 
   
   // ==========================================================
@@ -681,21 +725,39 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
       TF1 *func_eval = new TF1("func_eval", fit_formula.Data(), xmin, xmax);
 
       // Setup the Canvas
-      TCanvas *cClosure = tdrCanvas("cClosure", h_eta_ref, 8, 0, kSquare);
-      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0); 
+      TH1D *h_clos_ref_up = tdrHist("h_clos_ref_up", "JES", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
+      double h_clos_ref_min_yaxis = 0.95;
+      double h_clos_ref_max_yaxis = 1.05;
+      TH1D *h_clos_ref_dw = tdrHist("h_clos_ref_dw", "Data / MC", h_clos_ref_min_yaxis, h_eta_ref_max_yaxis, "#eta", -5.2, 5.2);
+      TCanvas *cClosure = tdrDiCanvas("cClosure", h_clos_ref_up, h_clos_ref_dw, 8, 11);
 
-      TLegend *leg_clos = tdrLeg(0.40, 0.15, 0.90, 0.35);
-      leg_clos->SetNColumns(2);
+      // --- TOP PAD ---
+      cClosure->cd(1);
+      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
+
+      TLegend *leg_clos = tdrLeg(0.15, 0.012, 0.90, 0.22);
+
+      leg_clos->SetNColumns(2); // Two columns to separate Data and MC nicely
+        
+      // --- BOTTOM PAD ---
+      cClosure->cd(2);
+      line_ref->SetLineColor(kGray+1);
+      line_ref->DrawLine(-5.2, 0.99, 5.2, 0.99);
+      line_ref->SetLineColor(kBlack);
+      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
+      line_ref->SetLineColor(kGray+1);
+      line_ref->DrawLine(-5.2, 1.01, 5.2, 1.01);
 
       for (size_t i = 0; i < pt_cuts.size(); ++i) {
           double pt_cut = pt_cuts[i];
           
           int y_bin_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
           int y_bin_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
-
+          cClosure->cd(1);
           // Draw MC Truth
           TProfile *p_mc_clos = p2_MPF_MC->ProfileX(Form("p_mc_clos_%d", (int)pt_cut), y_bin_start, y_bin_end);
           TProfile *p_mc_clos_rebin = (TProfile*)p_mc_clos->Rebin(nCustomEtaBins, Form("p_mc_clos_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+          TH1D *h_mc_clos = p_mc_clos_rebin->ProjectionX(Form("p_mc_clos_rebin_%d", (int)pt_cut));
           tdrDraw(p_mc_clos_rebin, "HIST", kNone, mc_colors[i], kSolid, mc_colors[i], 0, 0);
 
           // Extract Raw Data
@@ -727,8 +789,21 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
           
           tdrDraw(h_data_corr, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
 
-          leg_clos->AddEntry(h_data_corr, "Corr. Data ", "pe");
-          leg_clos->AddEntry(p_mc_clos_rebin, Form("MC , p_{T} > %d", (int)pt_cut), "le");
+          // Calculate Data/MC ratio
+          TH1D *h_clos_ratio = (TH1D*) h_data_corr -> Clone(Form("h_clos_ratio_%d", (int)pt_cut));
+          h_clos_ratio->Divide(h_mc_clos);
+          
+          // automatic y-axis in ratio
+          //   auto [h1_clos_ref_ratio_min, h1_clos_ref_ratio_max] = GetHistMinMaxWithErrors(h_clos_ratio);
+          //   h_clos_ref_min_yaxis = std::min(h_clos_ref_min_yaxis, h1_clos_ref_ratio_min*0.95);
+          //   h_clos_ref_max_yaxis = std::max(h_clos_ref_max_yaxis, h1_clos_ref_ratio_max*1.05);
+          //   h_clos_ref_dw -> GetYaxis() -> SetRangeUser(h_clos_ref_min_yaxis, h_clos_ref_max_yaxis);
+
+          leg_clos->AddEntry(h_data_corr, "Corrected Data", "pe");
+          leg_clos->AddEntry(p_mc_clos_rebin, Form("MC   p_{T} > %d GeV", (int)pt_cut), "le");
+          cClosure->cd(2);
+          tdrDraw(h_clos_ratio, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
+
       }
 
       cClosure->SaveAs(Form("%s/%s/%d/L2L3Res_Closure_TXT_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));

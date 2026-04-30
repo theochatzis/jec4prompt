@@ -9,22 +9,22 @@
     "runsDirectoriesBase": "/eos/user/j/jecpcl/public/jec4prompt/runs/",
     
     "_comment_jes_limits": "Y-axis bounds for the ratio plots",
-    "jes_limitMin": 0.85, 
-    "jes_limitMax": 1.15,
+    "jes_limitMin": 0.80, 
+    "jes_limitMax": 1.20,
     
     "_comment_precision": "Maximum fractional error (uncertainty/value) for a point to be included in the fit",
     "precision_tolerance": 0.05,
     
     "_comment_ref_eta": "Absolute eta limit used to define the stable barrel reference region",
-    "ref_eta_limit": 1.305,
+    "ref_eta_limits": [1.5, 2.5, 3, 5],
     
     "_comment_txt_output": "Naming conventions for the generated L2L3Res text payload files",
     "txt_output_prefix": "Summer24Prompt24JEC4Prompt",
     "txt_output_version": "V1",
     
     "_comment_ref_plot": "X-axis limits and pT threshold slices used for the initial Eta reference plots",
-    "ref_plot_pt_min": 40.0,
-    "ref_plot_pt_max": 300.0,
+    "ref_plot_pt_min": 30.0,
+    "ref_plot_pt_max": 2000.0,
     "ref_plot_pt_slices": [50.0, 100.0, 150.0]
   },
   "channels": {
