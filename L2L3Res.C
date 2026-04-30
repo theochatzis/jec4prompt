@@ -691,39 +691,6 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   // ==========================================================
   if (drawClosure) {
       std::cout << "Generating Closure Plot from TXT payload..." << std::endl;
-
-      // Read and parse the generated L2L3Res text file
-      std::ifstream in_file(txt_filename);
-      std::string line;
-      std::getline(in_file, line); // Skip the header line
-
-      struct JECLine {
-          double eta_min, eta_max;
-          std::vector<double> params;
-      };
-      std::vector<JECLine> jec_payload;
-
-      while (std::getline(in_file, line)) {
-          std::istringstream iss(line);
-          double e_min, e_max, x_min, x_max;
-          int n_tok;
-          
-          if (!(iss >> e_min >> e_max >> n_tok >> x_min >> x_max)) continue;
-          
-          JECLine jl;
-          jl.eta_min = e_min;
-          jl.eta_max = e_max;
-          
-          double p_val;
-          while (iss >> p_val) {
-              jl.params.push_back(p_val);
-          }
-          jec_payload.push_back(jl);
-      }
-      in_file.close();
-
-      TF1 *func_eval = new TF1("func_eval", fit_formula.Data(), xmin, xmax);
-
       // Setup the Canvas
       TH1D *h_clos_ref_up = tdrHist("h_clos_ref_up", "JES", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
       double h_clos_ref_min_yaxis = 0.95;
@@ -768,23 +735,13 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
           // Apply the payload correction bin-by-bin
           for (int bx = 1; bx <= nCustomEtaBins; ++bx) {
               double eta_center = h_data_corr->GetBinCenter(bx);
-              
-              for (const auto& jl : jec_payload) {
-                  if (eta_center > jl.eta_min && eta_center < jl.eta_max) {
-                      if (!jl.params.empty()) {
-                          for(size_t p_idx = 0; p_idx < jl.params.size(); ++p_idx) {
-                              func_eval->SetParameter(p_idx, jl.params[p_idx]);
-                          }
-                          
-                          double effective_pt = pt_cut * 1.20; 
-                          double correction_factor = func_eval->Eval(effective_pt);
-                          
-                          h_data_corr->SetBinContent(bx, h_data_corr->GetBinContent(bx) * correction_factor);
-                          h_data_corr->SetBinError(bx, h_data_corr->GetBinError(bx) * correction_factor);
-                      }
-                      break; 
-                  }
-              }
+
+              double effective_pt = pt_cut * 1.0; // Need to properly use the jet pT.
+              double correction_factor = getJEC(txt_filename, eta_center, effective_pt);
+            
+              h_data_corr->SetBinContent(bx, h_data_corr->GetBinContent(bx) * correction_factor);
+              h_data_corr->SetBinError(bx, h_data_corr->GetBinError(bx) * correction_factor);
+    
           }
           
           tdrDraw(h_data_corr, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
@@ -807,7 +764,6 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
       }
 
       cClosure->SaveAs(Form("%s/%s/%d/L2L3Res_Closure_TXT_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
-      delete func_eval;
   }
   
   // CLEANUP SECTION ( to avoid memory leaks)
