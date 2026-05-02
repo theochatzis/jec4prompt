@@ -9,22 +9,24 @@
     "runsDirectoriesBase": "/eos/user/j/jecpcl/public/jec4prompt/runs/",
     
     "_comment_jes_limits": "Y-axis bounds for the ratio plots",
-    "jes_limitMin": 0.80, 
-    "jes_limitMax": 1.20,
+    "jes_limitMin": 0.8, 
+    "jes_limitMax": 1.2,
+    "jes_db_limitMin": 0.5,
+    "jes_db_limitMax":1.1,
     
     "_comment_precision": "Maximum fractional error (uncertainty/value) for a point to be included in the fit",
     "precision_tolerance": 0.05,
     
     "_comment_ref_eta": "Absolute eta limit used to define the stable barrel reference region",
-    "ref_eta_limits": [1.5, 2.5, 3, 5],
+    "ref_plot_eta_slices": [1.5, 2.5, 3, 5],
     
     "_comment_txt_output": "Naming conventions for the generated L2L3Res text payload files",
     "txt_output_prefix": "Summer24Prompt24JEC4Prompt",
     "txt_output_version": "V1",
     
     "_comment_ref_plot": "X-axis limits and pT threshold slices used for the initial Eta reference plots",
-    "ref_plot_pt_min": 30.0,
-    "ref_plot_pt_max": 2000.0,
+    "ref_plot_pt_min": 10.0,
+    "ref_plot_pt_max": 2100.0,
     "ref_plot_pt_slices": [50.0, 100.0, 150.0]
   },
   "channels": {
@@ -34,9 +36,10 @@
       "mc_offline_file": "rootfiles/GamHistosFill_mc_summer2024P8_no-pu_w73.root",
       
       "_comment_profiles": "Names of the TProfile2D objects inside the ROOT files",
-      "profile_name_offline_mc": "Gamjet2/p2m0",
       "profile_name_mpf": "MPF_2D",
       "profile_name_db": "DB_2D",
+      "profile_name_mpf_offline_mc": "Gamjet2/p2m0",
+      "profile_name_db_offline_mc": "Gamjet2/p2m2",
       
       "_comment_plot_limits": "X-axis bounds for the pT in the individual eta bin fit plots",
       "xmin": 15.0,

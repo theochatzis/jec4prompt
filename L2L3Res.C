@@ -25,7 +25,7 @@ struct EtaBinConfig {
     std::vector<double> pt_bins;
 };
 
-void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet", bool drawClosure=true) {
+void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet") {
   // Don't display any graphics on the screen
   gROOT->SetBatch(kTRUE);
   // --- READ JSON CONFIGURATION ---
@@ -63,6 +63,9 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
 
   double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
   double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
+  double jes_db_limitMin = propertyTree.get<double>("global.jes_db_limitMin", 0.82-0.20);
+  double jes_db_limitMax = propertyTree.get<double>("global.jes_db_limitMax", 1.12+0.20);
+
   double precision_tolerance = propertyTree.get<double>("global.precision_tolerance", 0.20);
 
   
@@ -135,7 +138,10 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
 
   setTDRStyle();
   TDirectory *curdir = gDirectory;
-
+  
+  // ----------------------------------------
+  // INPUT FILES
+  // ----------------------------------------
   // Load input file, using the channel variable for the path as well
   TString dataPath = Form("%s/Run%s/run%d/%s/J4PHists_runs%dto%d_%s.root", 
                           runsDirectoriesBase.c_str(), basePath.Data(), run, channel.Data(), run, run, channel.Data());
@@ -155,169 +161,263 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
 
   std::string fileMCOnline = propertyTree.get<std::string>(chPath + ".mc_online_file");
   std::string fileMCOffline = propertyTree.get<std::string>(chPath + ".mc_offline_file");
-  std::string profileMCOffline = propertyTree.get<std::string>(chPath + ".profile_name_offline_mc");
+  std::string profileMCOffline = propertyTree.get<std::string>(chPath + ".profile_name_mpf_offline_mc");
+  std::string profileMCOfflineDB = propertyTree.get<std::string>(chPath + ".profile_name_db_offline_mc");
 
   TFile *fm = new TFile(fileMCOnline.c_str(), "READ");
   TFile *fmOffline = new TFile(fileMCOffline.c_str(), "READ");
-  
-  //TFile *fm = new TFile("../jecsys3/rootfiles/Prompt2024/Gam_w73/GamHistosFill_mc_summer2024P8_no-pu_w73.root","READ");
+
   assert(fm && !fm->IsZombie());
   assert(fmOffline && !fmOffline->IsZombie());
   
   curdir->cd();
   
+  // ----------------------------------------
+  // LOAD MPF AND DB JES MEASURES
+  // ----------------------------------------
   // Load input data (MPF, DB) from file
   TProfile2D *p2_MPF = (TProfile2D*)f->Get(profileName.c_str()); assert(p2_MPF);
+  p2_MPF->SetName("p2_MPF");
   TProfile2D *p2_MPF_MC = (TProfile2D*)fm->Get(profileName.c_str()); assert(p2_MPF_MC);
-  TProfile2D *p2_MPFOffline_MC = (TProfile2D*)fmOffline->Get(profileMCOffline.c_str()); assert(p2_MPFOffline_MC);
-  //TProfile2D *p2corrm = (TProfile2D*)fm->Get("Gamjet2/p2corr"); assert(p2corrm);
+  p2_MPF_MC->SetName("p2_MPF_MC");
+  TProfile2D *p2_MPF_OfflineMC = (TProfile2D*)fmOffline->Get(profileMCOffline.c_str()); assert(p2_MPF_OfflineMC);
+  p2_MPF_OfflineMC->SetName("p2_MPF_OfflineMC");
+
   TProfile2D *p2_DB = (TProfile2D*)f->Get(profileNameDB.c_str()); assert(p2_DB);
-
-
+  p2_DB->SetName("p2_DB");
+  TProfile2D *p2_DB_MC = (TProfile2D*)fm->Get(profileNameDB.c_str()); assert(p2_DB_MC);
+  p2_DB_MC->SetName("p2_DB_MC");
+  TProfile2D *p2_DB_OfflineMC = (TProfile2D*)fmOffline->Get(profileMCOfflineDB.c_str()); assert(p2_DB_OfflineMC);
+  p2_DB_OfflineMC->SetName("p2_DB_OfflineMC");
+  
+  // ----------------------------------------
+  // REFERENCE PLOTS
+  // ----------------------------------------
   // Make reference plots before the corrections.
-  // Initial fit at |eta|<1.305 needed for scaling dijet data to L2L3Res level
-  double refEtaLimit = propertyTree.get<double>("global.ref_eta_limit", 1.305);
-
-  int i1 = p2_MPF->GetXaxis()->FindBin(-refEtaLimit);
-  int i2 = p2_MPF->GetXaxis()->FindBin(+refEtaLimit)-1;
-  // (Repeat for the MC and Offline MC bin finders)
-  double eta1 = p2_MPF->GetXaxis()->GetBinLowEdge(i1);
-  double eta2 = p2_MPF->GetXaxis()->GetBinLowEdge(i2)+1;
-
-  int i1m = p2_MPF_MC->GetXaxis()->FindBin(-1.305);
-  int i2m = p2_MPF_MC->GetXaxis()->FindBin(+1.305)-1;
-  double eta1m = p2_MPF_MC->GetXaxis()->GetBinLowEdge(i1m);
-  double eta2m = p2_MPF_MC->GetXaxis()->GetBinLowEdge(i2m)+1;
-
-  int i1mOffline = p2_MPFOffline_MC->GetXaxis()->FindBin(-1.305);
-  int i2mOffline = p2_MPFOffline_MC->GetXaxis()->FindBin(+1.305)-1;
-  double eta1mOffline = p2_MPFOffline_MC->GetXaxis()->GetBinLowEdge(i1m);
-  double eta2mOffline = p2_MPFOffline_MC->GetXaxis()->GetBinLowEdge(i2m)+1;
-
-//   cout << Form("Fitting %1.3f #LT eta < %1.3f reference region\n",eta1,eta2);
+  // --- Plots vs pt of the tag object for different eta regions ---------------------------------
+  // Loop over reference eta regions
+  double refEtaLimit=0.0; 
+  double refEtaLimitPrevious = 0.0;
   
-//   std::string txt_filename = Form("%s/%s/Summer22EE-22Sep2023_Run%d_%s_DATA_L2L3Residual_AK4PFPuppi.txt", outputBaseDirectory.c_str(), basePath.Data(), run, basePath.Data());
-//   std::ofstream out_file(txt_filename);
-//   out_file << "{ 1 JetEta 1 JetPt " << fit_formula << " Correction L2Relative}\n";
-  
-  // Get reference binning (central region, eta ~ 0.0)
-  std::vector<double> v_pt_bins_ref = getPtBinning(0.0);
-  const Double_t* v13_ref = v_pt_bins_ref.data();
-  const int n13_ref = v_pt_bins_ref.size() - 1;
-
   float fit_region_min = propertyTree.get<float>("global.ref_plot_pt_min", 40.0);
   float fit_region_max = propertyTree.get<float>("global.ref_plot_pt_max", 300.0);
-
-  TProfile *p1_MPF = p2_MPF->ProfileY("p1_MPF",i1,i2);
-  TProfile *p1_MPF_rebin = (TProfile*)p1_MPF->Rebin(n13_ref,"p1_MPF_rebinned",v13_ref);
-  TH1D *h1_MPF = p1_MPF_rebin->ProjectionX("h1_MPF");
-  h1_MPF->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
-//   TH1D *h1_MPF_cut = (TH1D*)h1_MPF->Clone("h1_MPF_cut");
-//   h1_MPF_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
-
-  TProfile *p1_MPF_MC = p2_MPF_MC->ProfileY("p1_MPF_MC",i1m,i2m);
-  TProfile *p1_MPF_MC_rebin = (TProfile*)p1_MPF_MC->Rebin(n13_ref,"p1_MPF_MC_rebinned",v13_ref);
-  //TProfile *p1_MPF_MC_rebin = (TProfile*)p1_MPF_MC->Clone("p1_MPF_MC_rebinned");
-  TH1D *h1_MPF_MC = p1_MPF_MC_rebin->ProjectionX("h1_MPF_MC");
-  h1_MPF_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
-//   TH1D *h1_MPF_MC_cut = (TH1D*)h1_MPF_MC->Clone("h1_MPF_MC_cut");
-//   h1_MPF_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
-
-  TProfile *p1_MPFOffline_MC = p2_MPFOffline_MC->ProfileY("p1_MPFOffline_MC",i1mOffline,i2mOffline);
-  //TProfile *p1_MPFOffline_MC_rebin = (TProfile*)p1_MPFOffline_MC->Rebin(n13_ref,"p1_MPFOffline_MC_rebinned",v13_ref);
-  //TProfile *p1_MPFOffline_MC_rebin = (TProfile*)p1_MPFOffline_MC->Clone("p1_MPFOffline_MC_rebinned");
-  TH1D *h1_MPFOffline_MC = p1_MPFOffline_MC->ProjectionX("h1_MPFOffline_MC");
-  h1_MPFOffline_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
-//   TH1D *h1_MPFOffline_MC_cut = (TH1D*)h1_MPFOffline_MC->Clone("h1_MPFOffline_MC_cut");
-//   h1_MPFOffline_MC_cut->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
-
-  // Un-do the jec correction in offline
-  //TProfile *p1corrm = p2corrm->ProfileY("pcorrm",i1m,i2m);
-  //TH1D *h1corrm = p1corrm->ProjectionX("h1corrm");
-  //TH1D *h1_MPFOffline_MC_corr = (TH1D*)h1_MPFOffline_MC->Clone("h1_MPFOffline_MC_corr");
-  //h1_MPFOffline_MC_corr->Divide(h1corrm);
   
-  // Project TProfiles to TH1D before dividing for correct error propagation
-  TH1D *h1_ratio = (TH1D*)h1_MPF->Clone("h1_ratio");
-  TH1D *h1_mc_proj = (TH1D*)h1_MPF_MC->Clone("h1_mc_proj");
-  h1_ratio->Divide(h1_mc_proj);
-  
-  auto [h1_ratio_min, h1_ratio_max] = GetHistMinMaxWithErrors(h1_ratio);
+  for (auto& eta_lim : propertyTree.get_child("global.ref_plot_eta_slices")) {
+    //std::cout << eta_lim.second.get_value<double>() << std::endl;
+    // Find the indices of each eta limit
+    refEtaLimit = eta_lim.second.get_value<double>();
+    
+    // Get pt binning
+    std::vector<double> v_pt_bins_ref = getPtBinning(refEtaLimitPrevious + 1e-5);
+    const Double_t* v_ref = v_pt_bins_ref.data();
+    const int n_ref = v_pt_bins_ref.size() - 1;
+    
+    // --- MPF
+    // Folded 1D slices of pT in abs eta bins
+    TProfile *p1_MPF_unbinned = GetFoldedPtProfile(p2_MPF, refEtaLimitPrevious, refEtaLimit, Form("p1_MPF_unbinned_%f", refEtaLimit));
+    TProfile *p1_MPF_MC_unbinned = GetFoldedPtProfile(p2_MPF_MC, refEtaLimitPrevious, refEtaLimit, Form("p1_MPF_MC_unbinned_%f", refEtaLimit));
+    TProfile *p1_MPF_Offline_unbinned = GetFoldedPtProfile(p2_MPF_OfflineMC, refEtaLimitPrevious, refEtaLimit, Form("p1_MPF_Offline_unbinned_%f", refEtaLimit));
 
-  // Create top and bottom dummy histograms for tdrDiCanvas
-  TH1D *h_up = tdrHist("h_up", "JES", jes_limitMin, jes_limitMax, "", fit_region_min, fit_region_max);
-  TH1D *h_dw = tdrHist("h_dw", "Data / MC", h1_ratio_min*0.95, h1_ratio_max*1.05, "p_{T,#gamma} (GeV)", fit_region_min, fit_region_max);
+    // Rebin profiles
+    TProfile *p1_MPF_rebin = (TProfile*)p1_MPF_unbinned->Rebin(n_ref, Form("p1_MPF_rebin_%f",refEtaLimit), v_ref);
+    TProfile *p1_MPF_MC_rebin = (TProfile*)p1_MPF_MC_unbinned->Rebin(n_ref, Form("p1_MPF_MC_rebin_%f",refEtaLimit), v_ref);
+    TProfile *p1_MPF_Offline_rebin = (TProfile*)p1_MPF_Offline_unbinned->Rebin(n_ref, Form("p1_MPF_Offline_rebin_%f",refEtaLimit), v_ref);
 
-  lumi_136TeV = Form("Run%d, %.2f fb^{-1}", run, luminosity);
-  TCanvas *c1 = tdrDiCanvas("c1", h_up, h_dw, 8, 11);
-  
-  
+    // Project TProfiles to TH1D before dividing for correct error propagation
+    TH1D *h1_MPF = p1_MPF_rebin->ProjectionX(Form("h1_MPF_%f",refEtaLimit));
+    TH1D *h1_MPF_MC = p1_MPF_MC_rebin->ProjectionX(Form("h1_MPF_MC_%f",refEtaLimit));
+    TH1D *h1_MPF_OfflineMC = p1_MPF_Offline_rebin->ProjectionX(Form("h1_MPF_MCOffline_%f",refEtaLimit));
 
-  // --- TOP PAD ---
-  c1->cd(1);
-  gPad->SetLogx();
+    h1_MPF->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+    h1_MPF_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+    h1_MPF_OfflineMC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+    
+    // Calculate Ratio
+    TH1D *h1_ratio = (TH1D*)h1_MPF->Clone(Form("h1_ratio_%f",refEtaLimit));
+    TH1D *h1_mc_proj = (TH1D*)h1_MPF_MC->Clone(Form("h1_mc_proj_%f",refEtaLimit));
+    h1_ratio->Divide(h1_mc_proj);
 
-  TLatex *tex_eta = new TLatex();
-  tex_eta->SetNDC();
-  tex_eta->SetTextFont(42);
-  tex_eta->SetTextSize(0.045);
-  // Alignment 11: 1 = Left aligned horizontally, 1 = Bottom aligned vertically
-  tex_eta->SetTextAlign(11); 
-  // Draw at X=0.16 (aligned with the Y-axis) and Y=0.95 (in the top margin)
-  tex_eta->DrawLatex(0.16, 0.95, Form("|#eta| < %1.1f", 1.3));
-  
-  //drawCustomLogXLabels(h);
-  TLine *l_dw = new TLine(xmin, 1.0, xmax, 1.0);
-  l_dw->SetLineStyle(kDashed); l_dw->SetLineColor(kBlack); l_dw->Draw("same");
+    // --- DB
+    // Folded 1D slices of pT in abs eta bins
+    TProfile *p1_DB_unbinned = GetFoldedPtProfile(p2_DB, refEtaLimitPrevious, refEtaLimit, Form("p1_DB_unbinned_%f", refEtaLimit));
+    TProfile *p1_DB_MC_unbinned = GetFoldedPtProfile(p2_DB_MC, refEtaLimitPrevious, refEtaLimit, Form("p1_DB_MC_unbinned_%f", refEtaLimit));
+    TProfile *p1_DB_Offline_unbinned = GetFoldedPtProfile(p2_DB_OfflineMC, refEtaLimitPrevious, refEtaLimit, Form("p1_DB_Offline_unbinned_%f", refEtaLimit));
 
-  TLine *l = new TLine();
-  l->SetLineStyle(kDashed);
-  l->SetLineColor(kBlack);
-  l->DrawLine(fit_region_min,1,fit_region_max,1);
+    // Rebin profiles
+    TProfile *p1_DB_rebin = (TProfile*)p1_DB_unbinned->Rebin(n_ref, Form("p1_DB_rebin_%f",refEtaLimit), v_ref);
+    TProfile *p1_DB_MC_rebin = (TProfile*)p1_DB_MC_unbinned->Rebin(n_ref, Form("p1_DB_MC_rebin_%f",refEtaLimit), v_ref);
+    TProfile *p1_DB_Offline_rebin = (TProfile*)p1_DB_Offline_unbinned->Rebin(n_ref, Form("p1_DB_Offline_rebin_%f",refEtaLimit), v_ref);
 
-  tdrDraw(p1_MPF_MC_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
-  //tdrDraw(p1_MPFOffline_MC,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
-  //tdrDraw(h1_MPFOffline_MC_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
-  //tdrDraw(p1_MPF,"Pz",kOpenSquare,colorData,kSolid,-1,kNone,0);
-  tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0); //tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
-  //tdrDraw(h1_MPF_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
-  
-  // Make legends
-  TLegend *leg = new TLegend(0.55, 0.70, 0.88, 0.90);
-  leg->SetFillStyle(0);   // Transparent background
-  leg->SetBorderSize(0);  // No border
-  leg->SetTextFont(42);   // Standard CMS TDR font
-  leg->SetTextSize(0.04);
+    // Project TProfiles to TH1D before dividing for correct error propagation
+    TH1D *h1_DB = p1_DB_rebin->ProjectionX(Form("h1_DB_%f",refEtaLimit));
+    TH1D *h1_DB_MC = p1_DB_MC_rebin->ProjectionX(Form("h1_DB_MC_%f",refEtaLimit));
+    TH1D *h1_DB_OfflineMC = p1_DB_Offline_rebin->ProjectionX(Form("h1_DB_MCOffline_%f",refEtaLimit));
 
-  //leg->AddEntry(h1_MPF_cut, "Data (fit region)", "pe");
-  leg->AddEntry(p1_MPF_rebin, "Data", "pe");
-  //leg->AddEntry(p1_MPF, "Data (unrebinned)", "pe");
-  //leg->AddEntry(p1_MPFOffline_MC, "MC Offline", "le");
-  leg->AddEntry(p1_MPF_MC_rebin, "MC Online", "le");
-  
-  leg->Draw();
-  
-  // --- BOTTOM PAD (RATIO) ---
-  c1->cd(2);
-  gPad->SetLogx();
+    h1_DB->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+    h1_DB_MC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max); 
+    h1_DB_OfflineMC->GetXaxis()->SetRangeUser(fit_region_min, fit_region_max);
+    
+    // Calculate Ratio
+    TH1D *h1_db_ratio = (TH1D*)h1_DB->Clone(Form("h1_db_ratio_%f",refEtaLimit));
+    TH1D *h1_db_mc_proj = (TH1D*)h1_DB_MC->Clone(Form("h1_db_mc_proj_%f",refEtaLimit));
+    h1_db_ratio->Divide(h1_db_mc_proj);
+    
+    // --- PLOTTING --- 
+    auto [h1_ratio_min, h1_ratio_max] = GetHistMinMaxWithErrors(h1_ratio);
+    // Create top and bottom dummy histograms for tdrDiCanvas
+    TH1D *h_up = tdrHist("h_up", "JES (MPF)", jes_limitMin, jes_limitMax, "", fit_region_min, fit_region_max);
+    TH1D *h_dw = tdrHist("h_dw", "Data / MC", h1_ratio_min*0.95, h1_ratio_max*1.05, "p^{tag}_{T} (GeV)", fit_region_min, fit_region_max);
 
-  l->DrawLine(fit_region_min,1,fit_region_max,1);
-  tdrDraw(h1_ratio, "Pz", kFullCircle, colorData, kSolid, -1, kNone, 0);
+    lumi_136TeV = Form("Run%d, %.2f fb^{-1}", run, luminosity);
+    TCanvas *cPt = tdrDiCanvas("cPt", h_up, h_dw, 8, 11);
 
-  // Save to pdf
-  c1->SaveAs(Form("%s/%s/%d/L2L3Res_Eta13_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
-  
-  
-  // JES vs eta for slices of pT
+    // --- TOP PAD ---
+    cPt->cd(1);
+    gPad->SetLogx();
+
+    TLatex *tex_eta = new TLatex();
+    tex_eta->SetNDC();
+    tex_eta->SetTextFont(42);
+    tex_eta->SetTextSize(0.045);
+    // Alignment 11: 1 = Left aligned horizontally, 1 = Bottom aligned vertically
+    tex_eta->SetTextAlign(11); 
+    // Draw at X=0.16 (aligned with the Y-axis) and Y=0.95 (in the top margin)
+    if (refEtaLimit > 1e-3){ // handle the barrel case
+        tex_eta->DrawLatex(0.16, 0.95, Form("%0.1f< |#eta| < %0.1f", refEtaLimitPrevious, refEtaLimit));
+    }
+    else{
+        tex_eta->DrawLatex(0.16, 0.95, Form("|#eta| < %0.1f", refEtaLimit));
+    }
+
+    TLine *l = new TLine();
+    l->SetLineStyle(kDashed);
+    l->SetLineColor(kBlack);
+    l->DrawLine(fit_region_min,1,fit_region_max,1);
+
+    tdrDraw(p1_MPF_MC_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
+    tdrDraw(p1_MPF_Offline_unbinned,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
+    //tdrDraw(h1_MPF_OfflineMC_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
+    //tdrDraw(p1_MPF,"Pz",kOpenSquare,colorData,kSolid,-1,kNone,0);
+    tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0); //tdrDraw(p1_MPF_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
+    //tdrDraw(h1_MPF_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
+    
+    // Make legends
+    TLegend *leg = new TLegend(0.55, 0.70, 0.88, 0.90);
+    leg->SetFillStyle(0);   // Transparent background
+    leg->SetBorderSize(0);  // No border
+    leg->SetTextFont(42);   // Standard CMS TDR font
+    leg->SetTextSize(0.04);
+
+    //leg->AddEntry(h1_MPF_cut, "Data (fit region)", "pe");
+    leg->AddEntry(p1_MPF_rebin, "Data", "pe");
+    //leg->AddEntry(p1_MPF, "Data (unrebinned)", "pe");
+    leg->AddEntry(p1_MPF_Offline_unbinned, "MC Offline", "le");
+    leg->AddEntry(p1_MPF_MC_rebin, "MC Online", "le");
+    
+    leg->Draw();
+    
+    // --- BOTTOM PAD (RATIO) ---
+    cPt->cd(2);
+    gPad->SetLogx();
+
+    l->DrawLine(fit_region_min,1,fit_region_max,1);
+    tdrDraw(h1_ratio, "Pz", kFullCircle, colorData, kSolid, -1, kNone, 0);
+
+    // Save to pdf
+    cPt->SaveAs(Form("%s/%s/%d/L2L3Res_Ref_MPF_Et%dp%dto%dp%d_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run,
+    int(floor(refEtaLimitPrevious)), int(round((refEtaLimitPrevious-floor(refEtaLimitPrevious))*1000.)), 
+    int(floor(refEtaLimit)), int(round((refEtaLimit-floor(refEtaLimit))*1000.)), 
+    run));
+
+    // Plots with DB
+    auto [h1_db_ratio_min, h1_db_ratio_max] = GetHistMinMaxWithErrors(h1_db_ratio);
+    TH1D *h_db_up = tdrHist("h_db_up", "JES (DB)", jes_db_limitMin, jes_db_limitMax, "", fit_region_min, fit_region_max);
+    TH1D *h_db_dw = tdrHist("h_db_dw", "Data / MC", h1_ratio_min*0.95, h1_ratio_max*1.05, "p^{tag}_{T} (GeV)", fit_region_min, fit_region_max);
+
+    TCanvas *cPt_db = tdrDiCanvas("cPt_db", h_db_up, h_db_dw, 8, 11);
+
+    // --- TOP PAD ---
+    cPt_db->cd(1);
+    gPad->SetLogx();
+
+    tex_eta->SetNDC();
+    tex_eta->SetTextFont(42);
+    tex_eta->SetTextSize(0.045);
+    // Alignment 11: 1 = Left aligned horizontally, 1 = Bottom aligned vertically
+    tex_eta->SetTextAlign(11); 
+    // Draw at X=0.16 (aligned with the Y-axis) and Y=0.95 (in the top margin)
+    if (refEtaLimit > 1e-3){ // handle the barrel case
+        tex_eta->DrawLatex(0.16, 0.95, Form("%0.1f< |#eta| < %0.1f", refEtaLimitPrevious, refEtaLimit));
+    }
+    else{
+        tex_eta->DrawLatex(0.16, 0.95, Form("|#eta| < %0.1f", refEtaLimit));
+    }
+
+    l->SetLineStyle(kDashed);
+    l->SetLineColor(kBlack);
+    l->DrawLine(fit_region_min,1,fit_region_max,1);
+
+    tdrDraw(p1_DB_MC_rebin,"HIST",kNone,colorMC,kSolid,-1,kNone,0);
+    tdrDraw(p1_DB_Offline_unbinned,"HIST",kNone,kGreen,kSolid,-1,kNone,0);
+    //tdrDraw(h1_DB_OfflineMC_corr,"HIST",kNone,kBlue,kSolid,-1,kNone,0);
+    //tdrDraw(p1_DB,"Pz",kOpenSquare,colorData,kSolid,-1,kNone,0);
+    tdrDraw(p1_DB_rebin,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0); //tdrDraw(p1_DB_rebin,"Pz",kFullCircle,kRed,kSolid,-1,kNone,0);
+    //tdrDraw(h1_DB_cut,"Pz",kFullCircle,colorData,kSolid,-1,kNone,0);
+    
+    // Make legends
+    TLegend *leg_db = new TLegend(0.55, 0.70, 0.88, 0.90);
+    leg_db->SetFillStyle(0);   // Transparent background
+    leg_db->SetBorderSize(0);  // No border
+    leg_db->SetTextFont(42);   // Standard CMS TDR font
+    leg_db->SetTextSize(0.04);
+
+    //leg->AddEntry(h1_MPF_cut, "Data (fit region)", "pe");
+    leg_db->AddEntry(p1_MPF_rebin, "Data", "pe");
+    //leg->AddEntry(p1_MPF, "Data (unrebinned)", "pe");
+    leg_db->AddEntry(p1_MPF_Offline_unbinned, "MC Offline", "le");
+    leg_db->AddEntry(p1_MPF_MC_rebin, "MC Online", "le");
+    
+    leg_db->Draw();
+    
+    // --- BOTTOM PAD (RATIO) ---
+    cPt_db->cd(2);
+    gPad->SetLogx();
+
+    l->DrawLine(fit_region_min,1,fit_region_max,1);
+    tdrDraw(h1_db_ratio, "Pz", kFullCircle, colorData, kSolid, -1, kNone, 0);
+
+    // Save to pdf
+    cPt_db->SaveAs(Form("%s/%s/%d/L2L3Res_Ref_DB_Et%dp%dto%dp%d_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run,
+    int(floor(refEtaLimitPrevious)), int(round((refEtaLimitPrevious-floor(refEtaLimitPrevious))*1000.)), 
+    int(floor(refEtaLimit)), int(round((refEtaLimit-floor(refEtaLimit))*1000.)), 
+    run));
+    
+    // Cleanup memory
+    delete p1_MPF_unbinned; delete p1_MPF_MC_unbinned; delete p1_MPF_Offline_unbinned;
+    delete p1_MPF_rebin; delete p1_MPF_MC_rebin; delete p1_MPF_Offline_rebin;
+    delete h1_MPF; delete h1_MPF_MC; delete h1_MPF_OfflineMC; 
+    delete h1_ratio; delete h1_mc_proj;
+
+    delete p1_DB_unbinned; delete p1_DB_MC_unbinned; delete p1_DB_Offline_unbinned;
+    delete p1_DB_rebin; delete p1_DB_MC_rebin; delete p1_DB_Offline_rebin;
+    delete h1_DB; delete h1_DB_MC; delete h1_DB_OfflineMC; 
+    delete h1_db_ratio; delete h1_db_mc_proj;
+
+    // Set the previous eta limit to move on to next eta bin
+    refEtaLimitPrevious = refEtaLimit;
+  } // End of loop over reference eta bins
+
+
+  //--- JES vs eta for slices of pT --------------------------------------------------
   std::vector<double> pt_cuts(0);
   for (auto& item : propertyTree.get_child("global.ref_plot_pt_slices")) {
       pt_cuts.push_back(item.second.get<double>(""));
   }
   std::vector<int> colors = {kBlack, kRed, kBlue};
   std::vector<int> mc_colors = {kGray+1, kRed-9, kBlue-9};
-
+  // ---- MPF
   // Create dummy for the eta-response plot
-  TH1D *h_eta_ref_up = tdrHist("h_eta_ref_up", "JES", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
+  TH1D *h_eta_ref_up = tdrHist("h_eta_ref_up", "JES (MPF)", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
   double h_eta_ref_min_yaxis = 0.95;
   double h_eta_ref_max_yaxis = 1.05;
   TH1D *h_eta_ref_dw = tdrHist("h_eta_ref_dw", "Data / MC", h_eta_ref_min_yaxis, h_eta_ref_max_yaxis, "#eta", -5.2, 5.2);
@@ -378,10 +478,71 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
 
   }
 
+  cEta->SaveAs(Form("%s/%s/%d/JES_MPF_vs_Eta_Slices_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
 
+  // ---- DB
+  // Create dummy for the eta-response plot
+  TH1D *h_db_eta_ref_up = tdrHist("h_db_eta_ref_up", "JES (DB)", jes_db_limitMin, jes_db_limitMax, "#eta", -5.2, 5.2);
+  double h_db_eta_ref_min_yaxis = 0.95;
+  double h_db_eta_ref_max_yaxis = 1.05;
+  TH1D *h_db_eta_ref_dw = tdrHist("h_db_eta_ref_dw", "Data / MC", h_db_eta_ref_min_yaxis, h_db_eta_ref_max_yaxis, "#eta", -5.2, 5.2);
+  TCanvas *cEta_db = tdrDiCanvas("cEta_db", h_db_eta_ref_up, h_db_eta_ref_dw, 8, 11);
+  
+  // --- TOP PAD ---
+  cEta_db->cd(1);
+  line_ref->SetLineStyle(kDashed); line_ref->SetLineColor(kBlack);
+  line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
 
+  TLegend *leg_db_eta = tdrLeg(0.15, 0.012, 0.90, 0.22);
+  leg_db_eta->SetNColumns(2); // Two columns to separate Data and MC nicely
+  
+  // --- BOTTOM PAD ---
+  cEta_db->cd(2);
+  line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
 
-  cEta->SaveAs(Form("%s/%s/%d/JES_vs_Eta_Slices_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
+  for (size_t i = 0; i < pt_cuts.size(); ++i) {
+      double pt_cut = pt_cuts[i];
+      
+      // Find Y-bins for pT integration (from cut bin to overflow)
+      int y_bin_start = p2_DB->GetYaxis()->FindBin(pt_cut);
+      int y_bin_end   = p2_DB->GetYaxis()->GetNbins() + 1;
+
+      // Project and REBIN MC
+      TProfile *p_db_eta_mc = p2_DB_MC->ProfileX(Form("p_db_eta_mc_%d", (int)pt_cut), y_bin_start, y_bin_end);
+      TProfile *p_db_eta_mc_rebin = (TProfile*)p_db_eta_mc->Rebin(nCustomEtaBins, Form("p_db_eta_mc_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+
+      // Project and REBIN Data
+      TProfile *p_db_eta_data = p2_DB->ProfileX(Form("p_db_eta_data_%d", (int)pt_cut), y_bin_start, y_bin_end);
+      TProfile *p_db_eta_data_rebin = (TProfile*)p_db_eta_data->Rebin(nCustomEtaBins, Form("p_db_eta_data_rebin_%d", (int)pt_cut), custom_eta_edges.data());
+      
+      // Calculate Data/MC ratio
+      TH1D *h_db_eta_data = p_db_eta_data_rebin->ProjectionX(Form("p_db_eta_data_rebin_%d", (int)pt_cut));
+      TH1D *h_db_eta_mc = p_db_eta_mc_rebin->ProjectionX(Form("p_db_eta_mc_rebin_%d", (int)pt_cut));
+      TH1D *h_db_eta_ratio = (TH1D*) h_db_eta_data -> Clone(Form("h_db_eta_ratio_%d", (int)pt_cut));
+      h_db_eta_ratio->Divide(h_db_eta_mc);
+      
+      // automatic y-axis in ratio
+      auto [h1_db_eta_ref_ratio_min, h1_db_eta_ref_ratio_max] = GetHistMinMaxWithErrors(h_db_eta_ratio);
+      h_db_eta_ref_min_yaxis = std::min(h_db_eta_ref_min_yaxis, h1_db_eta_ref_ratio_min*0.95);
+      h_db_eta_ref_max_yaxis = std::max(h_db_eta_ref_max_yaxis, h1_db_eta_ref_ratio_max*1.05);
+      h_db_eta_ref_dw -> GetYaxis() -> SetRangeUser(h_db_eta_ref_min_yaxis, h_db_eta_ref_max_yaxis);
+      //--- Top pad
+      cEta_db->cd(1);
+
+      tdrDraw(p_db_eta_data_rebin, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
+      tdrDraw(p_db_eta_mc_rebin, "HIST", kNone, mc_colors[i], kSolid, mc_colors[i], 0, 0);
+      
+      // Pass the rebinned and styled objects to the legend, not the original ones!
+      leg_db_eta->AddEntry(p_db_eta_data_rebin, "Data", "pe");
+      leg_db_eta->AddEntry(p_db_eta_mc_rebin, Form("MC   p^{tag}_{T} > %d GeV", (int)pt_cut), "le");
+      
+      //--- Bottom pad
+      cEta_db->cd(2);
+      tdrDraw(h_db_eta_ratio, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
+  }
+
+  cEta_db->SaveAs(Form("%s/%s/%d/JES_DB_vs_Eta_Slices_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
+  
   
   // ==========================================================
   // Production of L2L3Res text file & Fit Loop over |eta| bins
@@ -684,103 +845,12 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   g_chi2ndf->Draw("PZ SAME");
   TLine *lChi2 = new TLine(); lChi2->SetLineStyle(kDashed); lChi2->DrawLine(-5.191, 1.0, 5.191, 1.0);
   cChi2->SaveAs(Form("%s/%s/%d/fits/L2L3Res_Chi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
-
-  
-  // ==========================================================
-  // FINAL CLOSURE PLOT: Corrected Data vs MC (via TXT File)
-  // ==========================================================
-  if (drawClosure) {
-      std::cout << "Generating Closure Plot from TXT payload..." << std::endl;
-      // Setup the Canvas
-      TH1D *h_clos_ref_up = tdrHist("h_clos_ref_up", "JES", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
-      double h_clos_ref_min_yaxis = 0.95;
-      double h_clos_ref_max_yaxis = 1.05;
-      TH1D *h_clos_ref_dw = tdrHist("h_clos_ref_dw", "Data / MC", h_clos_ref_min_yaxis, h_eta_ref_max_yaxis, "#eta", -5.2, 5.2);
-      TCanvas *cClosure = tdrDiCanvas("cClosure", h_clos_ref_up, h_clos_ref_dw, 8, 11);
-
-      // --- TOP PAD ---
-      cClosure->cd(1);
-      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
-
-      TLegend *leg_clos = tdrLeg(0.15, 0.012, 0.90, 0.22);
-
-      leg_clos->SetNColumns(2); // Two columns to separate Data and MC nicely
-        
-      // --- BOTTOM PAD ---
-      cClosure->cd(2);
-      line_ref->SetLineColor(kGray+1);
-      line_ref->DrawLine(-5.2, 0.99, 5.2, 0.99);
-      line_ref->SetLineColor(kBlack);
-      line_ref->DrawLine(-5.2, 1.0, 5.2, 1.0);
-      line_ref->SetLineColor(kGray+1);
-      line_ref->DrawLine(-5.2, 1.01, 5.2, 1.01);
-
-      for (size_t i = 0; i < pt_cuts.size(); ++i) {
-          double pt_cut = pt_cuts[i];
-          
-          int y_bin_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
-          int y_bin_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
-          cClosure->cd(1);
-          // Draw MC Truth
-          TProfile *p_mc_clos = p2_MPF_MC->ProfileX(Form("p_mc_clos_%d", (int)pt_cut), y_bin_start, y_bin_end);
-          TProfile *p_mc_clos_rebin = (TProfile*)p_mc_clos->Rebin(nCustomEtaBins, Form("p_mc_clos_rebin_%d", (int)pt_cut), custom_eta_edges.data());
-          TH1D *h_mc_clos = p_mc_clos_rebin->ProjectionX(Form("p_mc_clos_rebin_%d", (int)pt_cut));
-          tdrDraw(p_mc_clos_rebin, "HIST", kNone, mc_colors[i], kSolid, mc_colors[i], 0, 0);
-
-          // Extract Raw Data
-          TProfile *p_data_clos = p2_MPF->ProfileX(Form("p_data_clos_%d", (int)pt_cut), y_bin_start, y_bin_end);
-          TProfile *p_data_clos_rebin = (TProfile*)p_data_clos->Rebin(nCustomEtaBins, Form("p_data_clos_rebin_%d", (int)pt_cut), custom_eta_edges.data());
-          TH1D *h_data_corr = p_data_clos_rebin->ProjectionX(Form("h_data_corr_%d", (int)pt_cut));
-          
-          // Apply the payload correction bin-by-bin
-          for (int bx = 1; bx <= nCustomEtaBins; ++bx) {
-              double eta_center = h_data_corr->GetBinCenter(bx);
-
-              double effective_pt = pt_cut * 1.0; // Need to properly use the jet pT.
-              double correction_factor = getJEC(txt_filename, eta_center, effective_pt);
-            
-              h_data_corr->SetBinContent(bx, h_data_corr->GetBinContent(bx) * correction_factor);
-              h_data_corr->SetBinError(bx, h_data_corr->GetBinError(bx) * correction_factor);
-    
-          }
-          
-          tdrDraw(h_data_corr, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
-
-          // Calculate Data/MC ratio
-          TH1D *h_clos_ratio = (TH1D*) h_data_corr -> Clone(Form("h_clos_ratio_%d", (int)pt_cut));
-          h_clos_ratio->Divide(h_mc_clos);
-          
-          // automatic y-axis in ratio
-          //   auto [h1_clos_ref_ratio_min, h1_clos_ref_ratio_max] = GetHistMinMaxWithErrors(h_clos_ratio);
-          //   h_clos_ref_min_yaxis = std::min(h_clos_ref_min_yaxis, h1_clos_ref_ratio_min*0.95);
-          //   h_clos_ref_max_yaxis = std::max(h_clos_ref_max_yaxis, h1_clos_ref_ratio_max*1.05);
-          //   h_clos_ref_dw -> GetYaxis() -> SetRangeUser(h_clos_ref_min_yaxis, h_clos_ref_max_yaxis);
-
-          leg_clos->AddEntry(h_data_corr, "Corrected Data", "pe");
-          leg_clos->AddEntry(p_mc_clos_rebin, Form("MC   p_{T} > %d GeV", (int)pt_cut), "le");
-          cClosure->cd(2);
-          tdrDraw(h_clos_ratio, "Pz", kFullCircle, colors[i], kSolid, colors[i], 0, 0);
-
-      }
-
-      cClosure->SaveAs(Form("%s/%s/%d/L2L3Res_Closure_TXT_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
-  }
   
   // CLEANUP SECTION ( to avoid memory leaks)
   // Delete monitoring stuff
   delete cChi2;
   delete g_chi2ndf;
   delete hDummyChi2;
-
-  // Delete the canvas
-  delete c1;
-  delete h_up; delete h_dw; 
-  delete l;
-
-  // delete the histograms/profiles created
-  delete p1_MPF;
-  delete p1_MPF_rebin;
-  // delete other projections/clones...
 
   // Close and delete files
   f->Close();    delete f;
