@@ -1,28 +1,146 @@
 {
   "global": {
-    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testMPFnew",
+    "_comment_lumi": "Minimum recorded luminosity required to process a run (in pb^-1)",
+    "minimum_luminosity": 0.250,
+    
+    "_comment_paths": "Base directories for storing outputs and fetching run metadata/histograms",
+    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testFitLatest/",
     "jsonWithLumis_path": "/eos/user/j/jecpcl/public/jec4prompt/metadata/grouping.json",
-    "jes_limitMin": 0.85, 
-    "jes_limitMax": 1.15  
+    "runsDirectoriesBase": "/eos/user/j/jecpcl/public/jec4prompt/runs/",
+    
+    "_comment_jes_limits": "Y-axis bounds for the ratio plots",
+    "jes_limitMin": 0.80, 
+    "jes_limitMax": 1.20,
+    
+    "_comment_precision": "Maximum fractional error (uncertainty/value) for a point to be included in the fit",
+    "precision_tolerance": 0.05,
+    
+    "_comment_ref_eta": "Absolute eta limit used to define the stable barrel reference region",
+    "ref_eta_limits": [1.5, 2.5, 3, 5],
+    
+    "_comment_txt_output": "Naming conventions for the generated L2L3Res text payload files",
+    "txt_output_prefix": "Summer24Prompt24JEC4Prompt",
+    "txt_output_version": "V1",
+    
+    "_comment_ref_plot": "X-axis limits and pT threshold slices used for the initial Eta reference plots",
+    "ref_plot_pt_min": 30.0,
+    "ref_plot_pt_max": 2000.0,
+    "ref_plot_pt_slices": [50.0, 100.0, 150.0]
   },
   "channels": {
     "photonjet": {
+      "_comment_mc_files": "Paths to the reference Monte Carlo files (Online reweighted and Offline standard)",
+      "mc_online_file": "rootfiles/reweighted_J4PHists_photonjet_GJ-4Jets.root",
+      "mc_offline_file": "rootfiles/GamHistosFill_mc_summer2024P8_no-pu_w73.root",
+      
+      "_comment_profiles": "Names of the TProfile2D objects inside the ROOT files",
+      "profile_name_offline_mc": "Gamjet2/p2m0",
       "profile_name_mpf": "MPF_2D",
       "profile_name_db": "DB_2D",
+      
+      "_comment_plot_limits": "X-axis bounds for the pT in the individual eta bin fit plots",
       "xmin": 15.0,
       "xmax": 4500.0,
+      
+      "_comment_colors": "ROOT color codes for drawing the markers and lines",
       "color_data": 1,
       "color_mc": 591,
+      
+      "_comment_fallback": "Default low/high pT bounds forced onto the fit if a bin lacks enough data points",
+      "fallback_clamp_min": 30.0,
+      "fallback_clamp_max": 140.0,
+      
+      "_comment_binnings": "List of absolute eta boundaries and their corresponding dynamic pT binnings",
       "eta_binnings": [
         {
           "abs_eta_min": 0.0,
+          "abs_eta_max": 0.261,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 0.261,
+          "abs_eta_max": 0.522,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 0.522,
+          "abs_eta_max": 0.783,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 0.783,
+          "abs_eta_max": 1.044,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 1.044,
           "abs_eta_max": 1.305,
           "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
         },
         {
           "abs_eta_min": 1.305,
+          "abs_eta_max": 1.479,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 1.479,
+          "abs_eta_max": 1.653,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 1.653,
+          "abs_eta_max": 1.930,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 1.930,
+          "abs_eta_max": 2.172,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.172,
+          "abs_eta_max": 2.322,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.322,
+          "abs_eta_max": 2.500,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.500,
+          "abs_eta_max": 2.650,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.650,
+          "abs_eta_max": 2.853,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.853,
+          "abs_eta_max": 2.964,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 2.964,
+          "abs_eta_max": 3.139,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 3.139,
+          "abs_eta_max": 3.489,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 3.489,
+          "abs_eta_max": 3.839,
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
+        },
+        {
+          "abs_eta_min": 3.839,
           "abs_eta_max": 5.191,
-          "pt_binning": [20, 30, 40, 50, 70, 100, 150, 250, 400, 1000] 
+          "pt_binning": [20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000]
         }
       ]
     },

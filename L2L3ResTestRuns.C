@@ -58,11 +58,13 @@ void L2L3ResTestRunsOneEra(TString era="2025G") {
 void L2L3ResTestRuns(){
   const int Neras = 5; 
   TString erasArray[Neras] = { 
-  "2025C",
-  "2025D",
-  "2025E",
-  "2025F",
-  "2025G"
+    "2026B",
+    "2026C"
+//   "2025C",
+//   "2025D",
+//   "2025E",
+//   "2025F",
+//   "2025G"
   };
 
   for (int iEra=0;iEra<Neras;iEra++){
