@@ -1,0 +1,21 @@
+# Probe
+Probe_pt:
+  title: "Probe pT; Probe p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "Probe_pt"
+
+Probe_eta:
+  title: "Probe Eta; Probe #eta; Events"
+  bins: [30, -3, 3]
+  variable: "Probe_eta"
+
+Probe_phi:
+  title: "Probe Phi; Probe #phi; Events"
+  bins: [30, -3.15, 3.15]
+  variable: "Probe_phi"
+
+Probe_mass:
+  title: "Probe Mass; Probe mass; Events"
+  bins: [30, 0, 50]
+  variable: "Probe_mass"
+

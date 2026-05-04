@@ -1,0 +1,4 @@
+HighPtProbe:
+  name: "HighPtProbe"
+  cuts:
+    - "Probe_pt>50"

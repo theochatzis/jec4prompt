@@ -6,6 +6,12 @@ of `JEC4Prompt`:
 
 All the constants and parameters to be changed manually are set in the JSON file `constants.json`.
 
+# Contents
+- [Setup](https://github.com/theochatzis/jec4prompt/tree/main#setup)
+- [Deriving the JECs](https://github.com/theochatzis/jec4prompt/tree/main#deriving-the-jecs)
+- [Useful links](https://github.com/theochatzis/jec4prompt/tree/main#useful-links)
+- [Plotting scripts](https://github.com/theochatzis/jec4prompt/tree/main#plotting-scripts)
+
 # Setup
 Clone the repository
 ```bash
@@ -106,6 +112,9 @@ The standard JERC group [framework](https://gitlab.cern.ch/cms-jetmet/jerc2json)
 # Descriptions of scripts
 - `L2L3Res.C`: Derivation of L2L3Res fit for calibrations. 
 - `L2L3ResTestRuns.C`: Makes usage of `L2L3Res.C` and loops the procedure over all runs of one era stored in `jecpcl`.
+
+# Useful links
+- [JERC application tutorial](https://gitlab.cern.ch/cms-analysis/jme/jerc-application-tutorial)
 
 # Plotting scripts
 ## `combine_plots.py`( Combine plots in one page )
@@ -215,3 +224,5 @@ void simple_plot() {
     c->SaveAs("my_plot.png");
 }
 ```
+
+
