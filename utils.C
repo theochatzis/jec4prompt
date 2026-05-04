@@ -53,6 +53,40 @@ std::pair<double, double> GetHistMinMaxWithErrors(TObject* obj) {
     return {min_val, max_val};
 }
 
+// Extracts a 1D pT profile for a specific |eta| region by correctly folding +eta and -eta
+TProfile* GetFoldedPtProfile(TProfile2D* p2_orig, double eta_min, double eta_max, const TString& newName) {
+    if (!p2_orig) return nullptr;
+
+    // 1. SAFELY FIND BINS (using 1e-5 to prevent floating-point edge cases)
+    // Positive eta side
+    int pos_i1 = p2_orig->GetXaxis()->FindBin(eta_min + 1e-5);
+    int pos_i2 = p2_orig->GetXaxis()->FindBin(eta_max - 1e-5);
+    
+    // Negative eta side (Note the swap! -max is the lower edge, -min is the upper edge)
+    int neg_i1 = p2_orig->GetXaxis()->FindBin(-eta_max + 1e-5);
+    int neg_i2 = p2_orig->GetXaxis()->FindBin(-eta_min - 1e-5);
+
+    // 2. EXTRACT THE SLICES
+    // We use unique temporary names to avoid ROOT memory collision warnings
+    TProfile* p_pos = p2_orig->ProfileY(Form("%s_temp_pos", newName.Data()), pos_i1, pos_i2);
+    TProfile* p_neg = p2_orig->ProfileY(Form("%s_temp_neg", newName.Data()), neg_i1, neg_i2);
+
+    // 3. COMBINE THEM
+    TProfile* p_folded = (TProfile*)p_pos->Clone(newName);
+    
+    // Safety check: If a bin straddles exactly across 0.0, pos_i1 and neg_i2 will be the 
+    // exact same bin. We only add the negative side if they are truly distinct bins!
+    if (pos_i1 != neg_i2) {
+        p_folded->Add(p_neg); 
+    }
+
+    // 4. PREVENT MEMORY LEAKS
+    // We only want to return the combined result, so we delete the temporary slices.
+    delete p_pos;
+    delete p_neg;
+
+    return p_folded;
+}
 
 // Helper function to dynamically evaluate JECs from a standard txt payload
 double getJEC(const std::string& txt_filename, double jetEta, double jetPt) {
