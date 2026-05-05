@@ -1,0 +1,76 @@
+#======================
+# 1D Histograms
+#======================
+# Tag
+Tag_pt:
+  title: "Tag pT; Tag p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "Tag_pt"
+
+Tag_eta:
+  title: "Tag Eta; Tag #eta; Events"
+  bins: [30, -3, 3]
+  variable: "Tag_eta"
+
+Tag_phi:
+  title: "Tag Phi; Tag #phi; Events"
+  bins: [30, -3.15, 3.15]
+  variable: "Tag_phi"
+
+Tag_mass:
+  title: "Tag Mass; Tag mass [GeV]; Events"
+  bins: [30, 0, 50]
+  variable: "Tag_mass"
+
+# Probe
+Probe_pt:
+  title: "Probe pT; Probe p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "Probe_pt"
+
+Probe_eta:
+  title: "Probe Eta; Probe #eta; Events"
+  bins: [30, -3, 3]
+  variable: "Probe_eta"
+
+Probe_phi:
+  title: "Probe Phi; Probe #phi; Events"
+  bins: [30, -3.15, 3.15]
+  variable: "Probe_phi"
+
+Probe_mass:
+  title: "Probe Mass; Probe mass [GeV]; Events"
+  bins: [30, 0, 50]
+  variable: "Probe_mass"
+
+#======================
+# 1D Profiles
+#======================
+MPF_tag_Tag_pt:
+  type: "TProfile"
+  title: "Response vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "MPF_tag"
+#======================
+# 2D Histograms
+#======================
+Probe_eta_Tag_pt:
+  type: "TH2D"
+  title: "#eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T}"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+
+#======================
+# 2D Profiles
+#======================
+MPF_2D:
+  type: "TProfile2D"
+  title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "MPF_tag"
