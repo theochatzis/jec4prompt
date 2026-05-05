@@ -4,6 +4,7 @@ import argparse
 import yaml
 import ROOT
 import fnmatch
+import numpy as np
 import correctionlib
 from tqdm import tqdm  # Progress bar
 
@@ -162,19 +163,96 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
 
         output.mkdir(region_name)
         output.cd(region_name)
-
+        
+        # Make Histograms/Profiles
         hist_pointers = []
         for hist_name, hist_info in hist_config.items():
             title = hist_info["title"]
-            bins = hist_info["bins"]
-            variable = hist_info["variable"]
+            hist_type = hist_info.get("type", "TH1D")
 
-            hist = region_df.Histo1D(
-                (hist_name, title, bins[0], bins[1], bins[2]),
-                variable
-            )
-            hist_pointers.append(hist)
-            
+            # ------------------------------------
+            # Standard 1D Histogram (TH1D)
+            # ------------------------------------
+            if hist_type == "TH1D":
+                variable = hist_info["variable"]
+                if "edges" in hist_info:
+                    if hist_info["edges"][0]=="bins":
+                        edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
+                    else:
+                        edges = np.array(hist_info["edges"], dtype=np.float64)
+                    model = (hist_name, title, len(edges)-1, edges)
+                else:
+                    bins = hist_info["bins"]
+                    model = (hist_name, title, bins[0], bins[1], bins[2])
+                hist = region_df.Histo1D(model, variable)
+                hist_pointers.append(hist)
+
+            # ------------------------------------
+            # 1D Profile (TProfile)
+            # ------------------------------------
+            elif hist_type in ["TProfile", "Profile1D"]:
+                var_x = hist_info["variable_x"]
+                var_y = hist_info["variable_y"] # The variable being averaged!
+                if "edges" in hist_info:
+                    if hist_info["edges"][0]=="bins":
+                        edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
+                    else:
+                        edges = np.array(hist_info["edges"], dtype=np.float64)
+                    model = (hist_name, title, len(edges)-1, edges)
+                else:
+                    bins = hist_info["bins"]
+                    model = (hist_name, title, bins[0], bins[1], bins[2])
+                hist = region_df.Profile1D(model, var_x, var_y)
+                hist_pointers.append(hist)
+
+            # ------------------------------------
+            # Standard 2D Histogram (TH2D)
+            # ------------------------------------
+            elif hist_type == "TH2D":
+                var_x = hist_info["variable_x"]
+                var_y = hist_info["variable_y"]
+                if "edges_x" in hist_info and "edges_y" in hist_info:
+                    if hist_info["edges_x"][0]=="bins":
+                        edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
+                    else:
+                        edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
+                    if hist_info["edges_y"][0]=="bins":
+                        edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
+                    else:
+                        edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
+                    model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
+                else:
+                    bins = hist_info["bins"]
+                    model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
+                hist = region_df.Histo2D(model, var_x, var_y)
+                hist_pointers.append(hist)
+
+            # ------------------------------------
+            # 2D Profile (TProfile2D)
+            # ------------------------------------
+            elif hist_type in ["TProfile2D", "Profile2D"]:
+                var_x = hist_info["variable_x"]
+                var_y = hist_info["variable_y"]
+                var_z = hist_info["variable_z"] # The variable being averaged!
+                if "edges_x" in hist_info and "edges_y" in hist_info:
+                    if hist_info["edges_x"][0]=="bins":
+                        edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
+                    else:
+                        edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
+                    if hist_info["edges_y"][0]=="bins":
+                        edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
+                    else:
+                        edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
+                    model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
+                else:
+                    bins = hist_info["bins"]
+                    model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
+                hist = region_df.Profile2D(model, var_x, var_y, var_z)
+                hist_pointers.append(hist)
+                
+            else:
+                print(f"WARNING: Unknown histogram type '{hist_type}' for '{hist_name}'. Skipping.")
+
         # Trigger the event loop once and write all histograms
         for hist in hist_pointers:
             hist.Write()

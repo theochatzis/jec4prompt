@@ -1,4 +1,37 @@
-HighPtProbe:
-  name: "HighPtProbe"
+photonjet:
+  name: "photonjet"
   cuts:
-    - "Probe_pt>50"
+    - "HLT_Photon40EB_TightID_TightIso"
+    - "Tag_pt > 45"
+
+photonjet_Probe_HB:
+  name: "photonjet_Probe_HB"
+  cuts:
+    - "HLT_Photon40EB_TightID_TightIso"
+    - "Tag_pt > 45"
+    - "fabs(Probe_eta) < 1.5"
+
+photonjet_Probe_HE1:
+  name: "photonjet_Probe_HB"
+  cuts:
+    - "HLT_Photon40EB_TightID_TightIso"
+    - "Tag_pt > 45"
+    - "fabs(Probe_eta) > 1.5 && fabs(Probe_eta) < 2.5"
+
+photonjet_Probe_HE2:
+  name: "photonjet_Probe_HB"
+  cuts:
+    - "HLT_Photon40EB_TightID_TightIso"
+    - "Tag_pt > 45"
+    - "fabs(Probe_eta) > 2.5 && fabs(Probe_eta) < 3.0"
+
+photonjet_Probe_HF:
+  name: "photonjet_Probe_HF"
+  cuts:
+    - "HLT_Photon40EB_TightID_TightIso"
+    - "Tag_pt > 45"
+    - "fabs(Probe_eta) > 3.0 && fabs(Probe_eta) < 5.0"
+
+
+
+
