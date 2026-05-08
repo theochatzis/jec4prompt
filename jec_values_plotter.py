@@ -70,7 +70,7 @@ for fixed_eta in eta_cases:
         
         l2l3res = evaluator[name_L2L3Res].evaluate(fixed_eta, pt3)
         
-        comp = evaluator.compound[name_Compound].evaluate(fixed_eta, raw_pt, fixed_phi, rho_val, area_val)
+        comp = evaluator.compound[name_Compound].evaluate(area_val, fixed_eta, fixed_phi, raw_pt, rho_val)
         
         l1_vs_pt.append(l1)
         l2_vs_pt.append(l2)
@@ -140,7 +140,7 @@ for fixed_pt in pt_cases:
         l3abs = evaluator[name_L3Abs].evaluate(eta, pt2)
         pt3 = pt2 * l3abs
         l2l3res = evaluator[name_L2L3Res].evaluate(eta, pt3)
-        comp = evaluator.compound[name_Compound].evaluate(eta, fixed_pt, fixed_phi, rho_val, area_val)
+        comp = evaluator.compound[name_Compound].evaluate( area_val, eta, fixed_phi, fixed_pt, rho_val)
         
         l1_vs_eta.append(l1)
         l2_vs_eta.append(l2)
@@ -203,14 +203,14 @@ for fixed_pt in pt_cases:
 
     for abs_eta in abs_eta_range:
         # Positive Eta
-        l1_pos = evaluator[name_L1].evaluate(abs_eta, fixed_pt, rho_val, area_val)
+        l1_pos = evaluator[name_L1].evaluate(area_val, abs_eta, fixed_pt, rho_val)
         pt1_pos = fixed_pt * l1_pos
         l2_pos = evaluator[name_L2].evaluate(abs_eta, fixed_phi, pt1_pos)
         pt2_pos = pt1_pos * l2_pos
         l3abs_pos = evaluator[name_L3Abs].evaluate(abs_eta, pt2_pos)
         pt3_pos = pt2_pos * l3abs_pos
         l2l3res_pos = evaluator[name_L2L3Res].evaluate(abs_eta, pt3_pos)
-        comp_pos = evaluator.compound[name_Compound].evaluate(abs_eta, fixed_pt, fixed_phi, rho_val, area_val)
+        comp_pos = evaluator.compound[name_Compound].evaluate(area_val, abs_eta, fixed_phi, fixed_pt, rho_val)
         
         # Negative Eta
         l1_neg = evaluator[name_L1].evaluate(-abs_eta, fixed_pt, rho_val, area_val)
@@ -220,7 +220,7 @@ for fixed_pt in pt_cases:
         l3abs_neg = evaluator[name_L3Abs].evaluate(-abs_eta, pt2_neg)
         pt3_neg = pt2_neg * l3abs_neg
         l2l3res_neg = evaluator[name_L2L3Res].evaluate(-abs_eta, pt3_neg)
-        comp_neg = evaluator.compound[name_Compound].evaluate(-abs_eta, fixed_pt, fixed_phi, rho_val, area_val)
+        comp_neg = evaluator.compound[name_Compound].evaluate(area_val, -abs_eta, fixed_phi, fixed_pt, rho_val)
         
         # Ratios
         l1_asym.append(l1_pos / l1_neg if l1_neg != 0 else 1.0)

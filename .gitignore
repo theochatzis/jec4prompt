@@ -41,3 +41,5 @@
 *.dwo
 
 *JEC4Prompt*.txt
+*.cxx
+*.pcm

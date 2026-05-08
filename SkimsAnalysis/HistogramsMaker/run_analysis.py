@@ -30,20 +30,48 @@ parser.add_argument("--skip-first-nevents", required=False, type=int, default=0,
 parser.add_argument("--max-events", required=False, type=int, default=-1, help="Process only max events entries from TTree")
 parser.add_argument("--input-files-depth", required=False, type=int, default=0, help="Subfolder depth to process from --input-files-dir, default is 0 i.e. no subdirectory process")
 args = parser.parse_args()
-
+# === C++ HELPERS ===
 # ---------- Compile C++ helper functions ----------
 # Note : In this way the code will compile it here. You can use pre-compiled functions external .so from cc files or header (.h) files.
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# Load the header into the ROOT interpreter
-ROOT.gInterpreter.ProcessLine(f'#include "{os.path.join(script_dir, "../Common/interface/utils.h")}"')
+parent_dir = os.path.dirname(script_dir)
 
-# An example:
-# ROOT.gInterpreter.Declare("""
-# float compute_mt(float lep_pt, float lep_phi, float met_pt, float met_phi) {
-#     float dphi=TVector2::Phi_mpi_pi(lep_phi - met_phi);
-#     return std::sqrt(2.*lep_pt*met_pt*(1. - std::cos(dphi)));
-# }                       
-# """)
+lib_path = os.path.join(parent_dir, "Common")
+header_path = os.path.join(parent_dir, "Common/interface")
+
+# CORRECTIONLIB
+# Dynamically locate correctionlib
+corr_path = correctionlib.__path__[0]
+
+# Load the C++ shared libraries into ROOT
+ROOT.gSystem.Load(os.path.join(corr_path, "lib", "libcorrectionlib.so"))
+
+# Load the compiled library
+ROOT.gSystem.Load(os.path.join(lib_path,"libJECUtils.so"))
+
+# Load the header into the ROOT interpreter
+ROOT.gInterpreter.ProcessLine(f'#include "{os.path.join(header_path, "JECUtils.h")}"')
+ROOT.gInterpreter.ProcessLine(f'#include "{os.path.join(script_dir, "../Common/interface/utils.h")}"')
+# --------------------------------------------------
+# === CONFIGURATIONS ===
+# Initialize the JECs json payload
+
+
+
+json_path = "../../jsons/Summer24Prompt24JEC4PromptRun398027_JECs.json" 
+payload = "Summer24Prompt24JEC4PromptRun398027_V1_DATA_L1L2L3Res_AK4PFPuppi" # Make automatic that it understands which is the L1L2L3Res
+
+cset = correctionlib.CorrectionSet.from_file(json_path)
+if 'L1L2L3Res' in payload:
+    jec = cset.compound[payload]
+else:
+    jec = cset[payload]
+
+print(f"\nThe payload {payload} expects these inputs:")
+for inp in jec.inputs:
+    print(f" - {inp.name} ({inp.type})")
+
+ROOT.initJEC(json_path, payload)
 
 # ---------- Load YAML configuration ----------
 with open(args.histograms_defs, "r") as f:
@@ -130,6 +158,7 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
 
     # ---------- Define derived variables ----------    
     # Probe pt
+    df = df.Define("Probe_jec", "getJEC(Probe_area, Probe_eta, Probe_pt, Probe_phi, Rho_fixedGridRhoFastjetAll)")
     df = df.Define("Probe4Vec","GetObject4Vec(Probe_pt, Probe_eta, Probe_phi, Probe_mass)")
 
     # ---------- Create output file ----------

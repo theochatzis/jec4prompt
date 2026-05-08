@@ -203,10 +203,10 @@ def parse_l1_file(filepath, name="L1FastJet", version=1):
     print(f"[{name}] Extracted formula: {formula_str}")
 
     inputs = [
+        schema.Variable(name="JetA", type="real", description="Jet Area"),
         schema.Variable(name="JetEta", type="real", description="Jet Eta"),
         schema.Variable(name="JetPt", type="real", description="Jet Pt"),
-        schema.Variable(name="Rho", type="real", description="Event Rho"),
-        schema.Variable(name="JetA", type="real", description="Jet Area")
+        schema.Variable(name="Rho", type="real", description="Event Rho")
     ]
     
     eta_edges = []
@@ -307,11 +307,11 @@ if __name__ == "__main__":
         description="Full sequence applying L1, L2, L3, and Residual",
         
         inputs=[
+            schema.Variable(name="JetA", type="real", description="Jet Area"),
             schema.Variable(name="JetEta", type="real", description="Jet Eta"),
-            schema.Variable(name="JetPt", type="real", description="Jet Pt"),
             schema.Variable(name="JetPhi", type="real", description="Jet Phi"),
-            schema.Variable(name="Rho", type="real", description="Event Rho"),
-            schema.Variable(name="JetA", type="real", description="Jet Area")
+            schema.Variable(name="JetPt", type="real", description="Jet Pt"),
+            schema.Variable(name="Rho", type="real", description="Event Rho")
         ],
         
         inputs_update=["JetPt"], 

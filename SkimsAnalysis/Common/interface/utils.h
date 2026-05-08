@@ -1,7 +1,7 @@
 // SkimsAnalysis/Common/interface/utils.h
 
-#ifndef COMMON_UTILS_H
-#define COMMON_UTILS_H
+#ifndef UTILS_H
+#define UTILS_H
 
 #include "TLorentzVector.h"
 #include <cmath>
