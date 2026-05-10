@@ -196,16 +196,25 @@ leg->AddEntry(myGraph, "Data", "pe");
 ### Configuration Variables (`iPeriod` and `iPos`)
 
 iPeriod (Center of Mass Energy & Luminosity)
+
 Value,Output
+
 1 -> 7 TeV
+
 2 -> 8 TeV
+
 3 -> 7 TeV + 8 TeV
+
 4 -> 13 TeV
+
 7 -> 7 TeV + 8 TeV + 13 TeV
+
 8 -> 13.6 TeV (Run 3)
+
 12 -> 8 TeV (No lumi text)
 
 iPos (CMS Label Positioning)
+
 Defines where the "CMS" and "Preliminary" (or extraText) labels are placed.
 
 0 -> Out of Frame,"Top-left, physically above the plotting box. Leaves the plot area completely clean."

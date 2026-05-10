@@ -40,6 +40,7 @@
 # debug information files
 *.dwo
 
+*JEC4Prompt*.json
 *JEC4Prompt*.txt
 *.cxx
 *.pcm
