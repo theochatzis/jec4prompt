@@ -26,11 +26,47 @@ void initJEC(const char* filepath, const char* correction_name) {
 }
 
 float getJEC(float area, float eta,float phi, float pt , float rho) {
-    // Check if the correction is compound
+    // Create an empty vector with correctionlib inputs type to hold the dynamically ordered arguments.
+    std::vector<correction::Variable::Type> args;
+    
+    // Ask the correct pointer for its list of required inputs
+    auto required_inputs = (global_compound_jec != nullptr) ? 
+                            global_compound_jec->inputs() : 
+                            global_jec->inputs();
+    
+
+    // Loop through the required inputs and map them to your C++ variables
+    for (const auto& input : required_inputs) {
+        std::string name = input.name();
+
+        // Note: You must ensure these string names exactly match what your JSON uses!
+        // Standard CMS conventions are usually "JetEta", "JetPt", "Rho", "JetA", etc.
+        if (name == "JetEta" || name == "eta") {
+            args.push_back(static_cast<double>(eta));
+        } 
+        else if (name == "JetPt" || name == "pt") {
+            args.push_back(static_cast<double>(pt));
+        } 
+        else if (name == "JetA" || name == "area") {
+            args.push_back(static_cast<double>(area));
+        } 
+        else if (name == "Rho" || name == "rho") {
+            args.push_back(static_cast<double>(rho));
+        } 
+        else if (name == "JetPhi" || name == "phi") {
+            args.push_back(static_cast<double>(phi));
+        } 
+        else {
+            std::cerr << "[CRITICAL ERROR]: Unknown JEC input parameter requested by JSON: " << name << std::endl;
+            return 1.0; // Return uncorrected scale factor to avoid crashing, or throw an error.
+        }
+    }
+
+    // Evaluate
     if (global_compound_jec != nullptr) {
-        return global_compound_jec->evaluate({area, eta, phi, pt, rho});
+        return global_compound_jec->evaluate(args);
     } else {
-        return global_jec->evaluate({eta, pt}); 
+        return global_jec->evaluate(args); 
     }
 }
 
