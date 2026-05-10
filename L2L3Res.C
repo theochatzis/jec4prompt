@@ -25,7 +25,21 @@ struct EtaBinConfig {
     std::vector<double> pt_bins;
 };
 
-void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photonjet") {
+void L2L3Res(
+    int run = 398027,
+    TString basePath="2025G",
+    TString channel="photonjet",
+    std::string outputBaseDirectory_="",
+    std::string jsonWithLumis_path_="",
+    std::string runsDirectoriesBase_="",
+    bool use_minimum_luminosity_=true,
+    double minimum_luminosity_=-1.,
+    std::string l1_txtPath_ = "",
+    std::string l2_txtPath_ = "",
+    std::string l3abs_txtPath_ = "",
+    std::string outputJsonPath_ = ""
+  ) 
+  {
   // Don't display any graphics on the screen
   gROOT->SetBatch(kTRUE);
   // --- READ JSON CONFIGURATION ---
@@ -36,11 +50,14 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
       std::cerr << "Error reading constants.json: " << e.what() << std::endl;
       return; 
   }
-  std::string outputBaseDirectory = propertyTree.get<std::string>("global.outputBaseDirectory", "");
+
+  std::string outputBaseDirectory = (outputBaseDirectory_ == "") ? propertyTree.get<std::string>("global.outputBaseDirectory", "") : outputBaseDirectory_;
+
   // Extract Global Variables
   // note : second argument acts as a fall-back in case it isn't found.
-  std::string jsonWithLumis_path = propertyTree.get<std::string>("global.jsonWithLumis_path", "");
-  std::string runsDirectoriesBase = propertyTree.get<std::string>("global.runsDirectoriesBase", "");
+  std::string jsonWithLumis_path = (jsonWithLumis_path_ == "") ? propertyTree.get<std::string>("global.jsonWithLumis_path", "") : jsonWithLumis_path_;
+  std::string runsDirectoriesBase = (runsDirectoriesBase_ == "") ? propertyTree.get<std::string>("global.runsDirectoriesBase", "") : runsDirectoriesBase_;
+
   //Get luminosity 
   float luminosity = 0.;
   try {
@@ -52,14 +69,16 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
       std::cerr << Form("Error reading %s: ", jsonWithLumis_path.c_str()) << e.what() << std::endl;
       return; 
   }
-
-
-  double minimum_luminosity = propertyTree.get<double>("global.minimum_luminosity", 0.0);
-  
-  if (luminosity < minimum_luminosity){
+  double minimum_luminosity = (minimum_luminosity_ < 0.) ? propertyTree.get<double>("global.minimum_luminosity", 0.0) : minimum_luminosity_;
+  if (use_minimum_luminosity_ && luminosity < minimum_luminosity){
     std::cout << Form("Won't derive JECs. Run has luminosity smaller than :%.3f" , minimum_luminosity) << std::endl;
     return;
   }
+  
+  std::string l1_txtPath = (l1_txtPath_ == "") ?  propertyTree.get<std::string>("global.l1_txtPath", "./offline_txts/dummy_txts/JEC_L1FastJet_Dummy.txt") : l1_txtPath_;
+  std::string l2_txtPath = (l2_txtPath_ == "") ?  propertyTree.get<std::string>("global.l2_txtPath", "./offline_txts/dummy_txts/JEC_L2Relative_Dummy.txt") : l2_txtPath_;
+  std::string l3abs_txtPath = (l3abs_txtPath_ == "") ?  propertyTree.get<std::string>("global.l3abs_txtPath", "./offline_txts/dummy_txts/JEC_L3Absolute_Dummy.txt") : l3abs_txtPath_;
+  std::string outputJsonPath = (outputJsonPath_ == "") ? propertyTree.get<std::string>("global.outputJsonPath", "./offline_txts/dummy_txts/JEC_L3Absolute_Dummy.txt") : outputJsonPath_;
 
   double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
   double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
@@ -571,7 +590,19 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   g_chi2ndf->SetMarkerColor(kBlue);
   g_chi2ndf->SetLineColor(kBlue);
   int iPointChi2 = 0;
-  
+  // expected uncertainty of g_chi2ndfExpectedUnc
+  TGraphErrors *g_chi2ndfExpectedUnc = new TGraphErrors();
+  g_chi2ndfExpectedUnc->SetName("g_chi2ndfExpectedUnc");
+  g_chi2ndfExpectedUnc->SetTitle(Form("#chi^{2}/ndf of L2L3Res Fit (Run%d);Probe #eta;#chi^{2}/ndf", run));
+  g_chi2ndfExpectedUnc->SetFillColorAlpha(kBlue, 0.3); // Blue color with 30% opacity
+  g_chi2ndfExpectedUnc->SetFillStyle(1001);            // 1001 is a solid fill
+  g_chi2ndfExpectedUnc->SetLineColor(kBlue);
+  // Make the chi^2 probability from p-value
+  TGraphErrors *g_probabilityChi2ndf = new TGraphErrors();
+  g_probabilityChi2ndf->SetName("g_probabilityChi2ndf");
+  g_probabilityChi2ndf->SetTitle(Form("Prob(#chi^2) of L2L3Res Fit (Run%d);Probe #eta; Fit probability", run));
+  //g_probabilityChi2ndf->SetLineColor(kRed);
+
 
   
   curdir->cd(); // Ensure objects are written to the current active directory
@@ -711,13 +742,20 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
     if (n_fit_points >= 4) { 
         TFitResultPtr r = g_fit_graph->Fit(func, "RQSN");
         
-        // Fill Chi2/ndf monitoring graph
+        // Fill Chi2/ndf monitoring graph 
+        // also calculating the "global chi^2" as a metric of the overall fitting procedure
         if (func->GetNDF() > 0) {
             double chi2ndf = func->GetChisquare() / func->GetNDF();
+            double p_value = func->GetProb();
             g_chi2ndf->SetPoint(iPointChi2, eta_center, chi2ndf);
             g_chi2ndf->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, 0.0);
+            g_chi2ndfExpectedUnc->SetPoint(iPointChi2, eta_center, 1.0);
+            g_chi2ndfExpectedUnc->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, std::sqrt(2.0/func->GetNDF()));
+            g_probabilityChi2ndf->SetPoint(iPointChi2, eta_center, p_value);
+            g_probabilityChi2ndf->SetPointError(iPointChi2, (eta_max - eta_min)/2.0, 0.0);
             iPointChi2++;
         }
+
 
         // Generate the uncertainty band from TFitResult 
         h_band = new TH1D(Form("h_band_%d", ix), "", 500, xmin, xmax);
@@ -836,21 +874,56 @@ void L2L3Res(int run = 398027, TString basePath="2025G", TString channel="photon
   // Close the text file and save the fit grid canvas
   out_file.close();
   std::cout << "Successfully generated corrections txt: " << txt_filename << std::endl;
+  
+  // Make corrections JSON file
+  try {
+    gROOT->ProcessLine(Form(".! python3 makeJECsJSON.py \
+    --l1 %s \
+    --l2 %s \
+    --l3abs %s \
+    --l2l3res %s \
+    --output jsons/%sRun%d_JECs.json", 
+    l1_txtPath.c_str(), l2_txtPath.c_str(), l3abs_txtPath.c_str(), txt_filename.c_str(), txtPrefix.c_str(), run));
+    
+    // keep the json but copy to the latest json directory ( a fixed directory where the latest correction is saved )
+    gROOT->ProcessLine(Form(".! cp jsons/%sRun%d_JECs.json %s/j4pjerc.json", txtPrefix.c_str(), run, outputJsonPath.c_str()));
+  
+  } catch (const std::exception& e) {
+      std::cerr << "Error creating json file: " << e.what() << std::endl;
+      return; 
+  }
+  std::cout << "Successfully generated corrections json file! : " << outputJsonPath << "/j4pjerc.json" << std::endl;
+  
 
-
-  // --- Plot of chi2/ndf vs Eta ---
-  // --- Final Plot: Chi2/ndf vs Eta ---
+  // --- Plot of chi2/ndf and its probability vs Eta ---
+  // --- Chi2/ndf vs Eta ---
   TH1D *hDummyChi2 = tdrHist("hDummyChi2","#chi^{2}/ndf", -0.1, 5.0, "Probe #eta", -5.2, 5.2);
   TCanvas *cChi2 = tdrCanvas("cChi2", hDummyChi2, 8, 0, kRectangular); // tdrCanvas creates the canvas for you!
+  g_chi2ndfExpectedUnc->Draw("E2 SAME"); 
   g_chi2ndf->Draw("PZ SAME");
   TLine *lChi2 = new TLine(); lChi2->SetLineStyle(kDashed); lChi2->DrawLine(-5.191, 1.0, 5.191, 1.0);
+  TLegend *ltChi2 = tdrLeg(0.60, 0.70, 0.90, 0.88); 
+  ltChi2->AddEntry(g_chi2ndf, "Fit Results", "pe");
+  ltChi2->AddEntry(g_chi2ndfExpectedUnc, "Expectation (1 #sigma)", "f");
   cChi2->SaveAs(Form("%s/%s/%d/fits/L2L3Res_Chi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
+
+  // --- Probability vs Eta ---
+  TH1D *hDummyProbChi2 = tdrHist("hDummyProbChi2","Probability", 1e-4, 1.0, "Probe #eta", -5.2, 5.2);
+  TCanvas *cProbChi2 = tdrCanvas("cProbChi2", hDummyProbChi2, 8, 0, kRectangular); // tdrCanvas creates the canvas for you!
+  cProbChi2->SetLogy(true);
+  g_probabilityChi2ndf->Draw("PZ SAME");
+  cProbChi2->SaveAs(Form("%s/%s/%d/fits/L2L3Res_ProbChi2_vs_Eta_run%d.png", outputBaseDirectory.c_str(), basePath.Data(), run, run));
   
   // CLEANUP SECTION ( to avoid memory leaks)
   // Delete monitoring stuff
   delete cChi2;
   delete g_chi2ndf;
+  delete g_chi2ndfExpectedUnc;
   delete hDummyChi2;
+  delete cProbChi2;
+  delete g_probabilityChi2ndf;
+  delete hDummyProbChi2;
+  
 
   // Close and delete files
   f->Close();    delete f;

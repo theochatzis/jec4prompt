@@ -32,12 +32,26 @@ You can find the constants like input paths, binnings for the channels etc in a 
 # Deriving the JECs
 For now the $`\gamma`$ + jet channel is only used. Corrections are derived in L2L3Residuals for all etas of probe jet.
 
-By running the `L2L3Res.C` file automatically a `txt` with the `L2L3Residual` corrections is produced. 
+By running the `L2L3Res.C` file automatically a `txt` with the `L2L3Residual` corrections is produced, which is saved in directory `txts`. In addition the `txt` is used to produce a json file saved in `jsons` directory and updates the json `j4pjerc.json` which exists in a central defined path. 
+
+To run it with the necessary parameters:
 ```bash
 root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet")'
 ```
-ToDos : 
-- Add also to make the JSON automatically.
+The rest of the parameters are optional and there are baseline values in `constants.json`. Description of parameters bellow:
+- `outputBaseDirectory (string)`: Base directory where outputs plots are saved.
+- `jsonWithLumis_path (string)`: Directory which contains the json with runs and their luminosities in jecpcl.
+- `runsDirectoriesBase (string)`: Directory which contains the input histograms files splitted by runs in jecpcl.
+- `use_minimum_luminosity (bool)`: If used then the runs will be used for jecs only if a minimum luminosity is satisfied.
+- `minimum_luminosity (double)`: The minimum luminosity value used if needed.
+- `l1_txtPath (string)`: The path to the txt file with L1FastJet corrections. By default the dummy txt file is used.
+- `l2_txtPath (string)`: The path to the txt file with L2Relative corrections. By default the dummy txt file is used.
+- `l3abs_txtPath (string)`: The path to the txt file with L3Absolute corrections. By default the dummy txt file is used.
+- `outputJsonPath (string)`: The path where the `j4pjerc.json` is saved.
+
+
+
+## Making Closure plots
 - Add checks of corrections and closures.
 
 ## Making correction `.json` file from `.txt`

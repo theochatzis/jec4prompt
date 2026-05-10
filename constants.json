@@ -4,10 +4,16 @@
     "minimum_luminosity": 0.250,
     
     "_comment_paths": "Base directories for storing outputs and fetching run metadata/histograms",
-    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testFitLatest/",
+    "outputBaseDirectory": "/eos/user/t/tchatzis/php-plots/JEC4Prompt/testFitLatestV2/",
     "jsonWithLumis_path": "/eos/user/j/jecpcl/public/jec4prompt/metadata/grouping.json",
     "runsDirectoriesBase": "/eos/user/j/jecpcl/public/jec4prompt/runs/",
+    "outputJsonPath": "/eos/user/t/tchatzis/jec4prompt/testJson/",
     
+    "_comment_pathsToTxts": "Paths to txts used for the production of the final JSON file with the corrections",
+    "l1_txtPath": "./offline_txts/dummy_txts/JEC_L1FastJet_Dummy.txt",
+    "l2_txtPath": "./offline_txts/Summer24Prompt24_V1_MC_L2Relative_AK4PFPuppi.txt",
+    "l3abs_txtPath": "./offline_txts/dummy_txts/JEC_L3Absolute_Dummy.txt",
+
     "_comment_jes_limits": "Y-axis bounds for the ratio plots",
     "jes_limitMin": 0.8, 
     "jes_limitMax": 1.2,
