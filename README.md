@@ -24,7 +24,7 @@ root -l -b -q 'L2L3Res.C(<run(integer)>, <era(string)>, <channel(string)>)'
 
 For example for photonjet in 2025G run 398600:
 ```bash
-root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet")'
+root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet", outputBaseDirectory="./testOutput/", outputJsonPath="./testJSON/")'
 ```
 
 You can find the constants like input paths, binnings for the channels etc in a single json file `constants.json`.
@@ -36,7 +36,7 @@ By running the `L2L3Res.C` file automatically a `txt` with the `L2L3Residual` co
 
 To run it with the necessary parameters:
 ```bash
-root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet")'
+root -l -b -q 'L2L3Res.C(398600, "2025G", "photonjet", outputBaseDirectory=<output directory>, outputJsonPath=<path for j4pjerc.json>)'
 ```
 The rest of the parameters are optional and there are baseline values in `constants.json`. Description of parameters bellow:
 - `outputBaseDirectory (string)`: Base directory where outputs plots are saved.
