@@ -25,7 +25,7 @@ void initJEC(const char* filepath, const char* correction_name) {
     }
 }
 
-float getJEC(float area, float eta,float phi, float pt , float rho) {
+float getJEC(float area, float eta, float phi, float pt , float rho) {
     // Create an empty vector with correctionlib inputs type to hold the dynamically ordered arguments.
     std::vector<correction::Variable::Type> args;
     

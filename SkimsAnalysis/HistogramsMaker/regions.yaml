@@ -4,12 +4,19 @@ photonjet:
     - "HLT_Photon50EB_TightID_TightIso"
     - "Tag_pt > 55"
 
+photonjet_Probe_HB1:
+  name: "photonjet_Probe_HB1"
+  cuts:
+    - "HLT_Photon50EB_TightID_TightIso"
+    - "Tag_pt > 55"
+    - "Probe_eta < 0.261 && Probe_eta > 0.0"
+
 photonjet_Probe_HB:
   name: "photonjet_Probe_HB"
   cuts:
     - "HLT_Photon50EB_TightID_TightIso"
     - "Tag_pt > 55"
-    - "fabs(Probe_eta) < 1.5"
+    - "fabs(Probe_eta) < 1.3"
 
 photonjet_Probe_HE1:
   name: "photonjet_Probe_HB"

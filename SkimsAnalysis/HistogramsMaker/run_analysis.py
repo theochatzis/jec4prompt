@@ -52,14 +52,12 @@ ROOT.gSystem.Load(os.path.join(lib_path,"libJECUtils.so"))
 # Load the header into the ROOT interpreter
 ROOT.gInterpreter.ProcessLine(f'#include "{os.path.join(header_path, "JECUtils.h")}"')
 ROOT.gInterpreter.ProcessLine(f'#include "{os.path.join(script_dir, "../Common/interface/utils.h")}"')
+
 # --------------------------------------------------
 # === CONFIGURATIONS ===
 # Initialize the JECs json payload
-
-
-
 json_path = "../../jsons/Summer24Prompt24JEC4PromptRun398027_JECs.json" 
-payload = "Summer24Prompt24JEC4PromptRun398027_V1_DATA_L1L2L3Res_AK4PFPuppi" # Make automatic that it understands which is the L1L2L3Res
+payload = "Summer24Prompt24JEC4PromptRun398027_V1_DATA_L2L3Residual_AK4PFPuppi" # Make automatic that it understands which is the L1L2L3Res
 
 cset = correctionlib.CorrectionSet.from_file(json_path)
 if 'L1L2L3Res' in payload:
@@ -157,9 +155,24 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
         df = df.Range(args.skip_first_nevents, args.max_events)  # skip first [skip_first_nevents], take next [max_events]
 
     # ---------- Define derived variables ----------    
-    # Probe pt
-    df = df.Define("Probe_jec", "getJEC(Probe_area, Probe_eta, Probe_pt, Probe_phi, Rho_fixedGridRhoFastjetAll)")
-    df = df.Define("Probe4Vec","GetObject4Vec(Probe_pt, Probe_eta, Probe_phi, Probe_mass)")
+    # Tag
+    df = df.Define("Tag_PolarVec" , "ROOT::Math::Polar2DVector(Tag_pt, Tag_phi)")
+
+    # Probe 
+    df = df.Define("Probe_jec", "getJEC(Probe_area, Probe_eta, Probe_phi, Probe_pt, Rho_fixedGridRhoFastjetAll)")
+    df = df.Define("Probe_corPt" , "Probe_jec*Probe_pt")
+    df = df.Define("Probe_corDB", "Probe_corPt/Tag_pt")
+    df = df.Define("Probe_corPolarVec", "ROOT::Math::Polar2DVector(Probe_corPt, Probe_phi)")
+
+    # Re-Apply correction of Probe Jet to MET
+    df = df.Define("corMETvec", "getCorrectedMET(PuppiMET_pt, PuppiMET_phi, Probe_pt, Probe_corPt, Probe_phi)")
+    df = df.Define("T1MET_corPt", "corMETvec.Pt()")
+    df = df.Define("T1MET_corPhi", "corMETvec.Phi()")
+    df = df.Define("T1MET_corPolarVec", "ROOT::Math::Polar2DVector(T1MET_corPt, T1MET_corPhi)")
+    
+
+    # Make corrected MPF
+    df = df.Define("corMPF", "1 + T1MET_corPolarVec.Dot(Tag_PolarVec)/Tag_PolarVec.Mag2()")
 
     # ---------- Create output file ----------
     os.makedirs(args.output_dir, exist_ok=True)
