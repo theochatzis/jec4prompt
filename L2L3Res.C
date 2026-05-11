@@ -432,8 +432,27 @@ void L2L3Res(
   for (auto& item : propertyTree.get_child("global.ref_plot_pt_slices")) {
       pt_cuts.push_back(item.second.get<double>(""));
   }
-  std::vector<int> colors = {kBlack, kRed, kBlue};
-  std::vector<int> mc_colors = {kGray+1, kRed-9, kBlue-9};
+  
+  std::vector<int> colors = {
+    kBlack,
+    kRed,
+    kBlue,
+    kGreen+2,
+    kMagenta,
+    kOrange+7,
+    kCyan+2
+  };
+
+  std::vector<int> mc_colors = {
+    kGray+1,
+    kRed-9,
+    kBlue-9,
+    kGreen-9,
+    kMagenta-9,
+    kOrange-3,
+    kCyan-9
+  };
+  
   // ---- MPF
   // Create dummy for the eta-response plot
   TH1D *h_eta_ref_up = tdrHist("h_eta_ref_up", "JES (MPF)", jes_limitMin, jes_limitMax, "#eta", -5.2, 5.2);
@@ -462,8 +481,11 @@ void L2L3Res(
       int y_bin_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
       int y_bin_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
 
+      int y_bin_mc_start = p2_MPF->GetYaxis()->FindBin(pt_cut);
+      int y_bin_mc_end   = p2_MPF->GetYaxis()->GetNbins() + 1;
+
       // Project and REBIN MC
-      TProfile *p_eta_mc = p2_MPF_MC->ProfileX(Form("p_eta_mc_%d", (int)pt_cut), y_bin_start, y_bin_end);
+      TProfile *p_eta_mc = p2_MPF_MC->ProfileX(Form("p_eta_mc_%d", (int)pt_cut), y_bin_mc_start, y_bin_mc_end);
       TProfile *p_eta_mc_rebin = (TProfile*)p_eta_mc->Rebin(nCustomEtaBins, Form("p_eta_mc_rebin_%d", (int)pt_cut), custom_eta_edges.data());
 
       // Project and REBIN Data
@@ -526,8 +548,11 @@ void L2L3Res(
       int y_bin_start = p2_DB->GetYaxis()->FindBin(pt_cut);
       int y_bin_end   = p2_DB->GetYaxis()->GetNbins() + 1;
 
+      int y_bin_mc_start = p2_DB_MC->GetYaxis()->FindBin(pt_cut);
+      int y_bin_mc_end   = p2_DB_MC->GetYaxis()->GetNbins() + 1;
+
       // Project and REBIN MC
-      TProfile *p_db_eta_mc = p2_DB_MC->ProfileX(Form("p_db_eta_mc_%d", (int)pt_cut), y_bin_start, y_bin_end);
+      TProfile *p_db_eta_mc = p2_DB_MC->ProfileX(Form("p_db_eta_mc_%d", (int)pt_cut), y_bin_mc_start, y_bin_mc_end);
       TProfile *p_db_eta_mc_rebin = (TProfile*)p_db_eta_mc->Rebin(nCustomEtaBins, Form("p_db_eta_mc_rebin_%d", (int)pt_cut), custom_eta_edges.data());
 
       // Project and REBIN Data
