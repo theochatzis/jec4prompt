@@ -15,6 +15,65 @@ t0 = time.time()
 ROOT.ROOT.EnableImplicitMT()
 print("Threads enabled:", ROOT.ROOT.GetThreadPoolSize())
 
+def book_histograms(dataframe, config):
+    """Books all histograms from the YAML for a given RDataFrame node."""
+    pointers = []
+    for hist_name, hist_info in config.items():
+        title = hist_info["title"]
+        hist_type = hist_info.get("type", "TH1D")
+
+        if hist_type == "TH1D":
+            variable = hist_info["variable"]
+            if "edges" in hist_info:
+                if hist_info["edges"][0]=="bins": edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
+                else: edges = np.array(hist_info["edges"], dtype=np.float64)
+                model = (hist_name, title, len(edges)-1, edges)
+            else:
+                bins = hist_info["bins"]
+                model = (hist_name, title, bins[0], bins[1], bins[2])
+            pointers.append(dataframe.Histo1D(model, variable))
+
+        elif hist_type in ["TProfile", "Profile1D"]:
+            var_x, var_y = hist_info["variable_x"], hist_info["variable_y"]
+            if "edges" in hist_info:
+                if hist_info["edges"][0]=="bins": edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
+                else: edges = np.array(hist_info["edges"], dtype=np.float64)
+                model = (hist_name, title, len(edges)-1, edges)
+            else:
+                bins = hist_info["bins"]
+                model = (hist_name, title, bins[0], bins[1], bins[2])
+            pointers.append(dataframe.Profile1D(model, var_x, var_y))
+
+        elif hist_type == "TH2D":
+            var_x, var_y = hist_info["variable_x"], hist_info["variable_y"]
+            if "edges_x" in hist_info and "edges_y" in hist_info:
+                if hist_info["edges_x"][0]=="bins": edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
+                else: edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
+                if hist_info["edges_y"][0]=="bins": edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
+                else: edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
+                model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
+            else:
+                bins = hist_info["bins"]
+                model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
+            pointers.append(dataframe.Histo2D(model, var_x, var_y))
+
+        elif hist_type in ["TProfile2D", "Profile2D"]:
+            var_x, var_y, var_z = hist_info["variable_x"], hist_info["variable_y"], hist_info["variable_z"]
+            if "edges_x" in hist_info and "edges_y" in hist_info:
+                if hist_info["edges_x"][0]=="bins": edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
+                else: edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
+                if hist_info["edges_y"][0]=="bins": edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
+                else: edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
+                model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
+            else:
+                bins = hist_info["bins"]
+                model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
+            pointers.append(dataframe.Profile2D(model, var_x, var_y, var_z))
+        else:
+            print(f"WARNING: Unknown histogram type '{hist_type}'. Skipping.")
+            
+    return pointers
+
 # ---------- Argument Parsing ----------
 parser = argparse.ArgumentParser(description="RDataFrame Analysis with YAML configs")
 parser.add_argument("--input-files-dir", required=True, help="Directory with subdirectories of input ROOT files")
@@ -29,6 +88,8 @@ parser.add_argument("--tree-name", required=False, default="Events", help="Name 
 parser.add_argument("--skip-first-nevents", required=False, type=int, default=0, help="Skip first N events from TTree")
 parser.add_argument("--max-events", required=False, type=int, default=-1, help="Process only max events entries from TTree")
 parser.add_argument("--input-files-depth", required=False, type=int, default=0, help="Subfolder depth to process from --input-files-dir, default is 0 i.e. no subdirectory process")
+parser.add_argument("--add-no-selection", required=False, type=bool, default=False, help="Add histograms in the file without any selection")
+
 args = parser.parse_args()
 # === C++ HELPERS ===
 # ---------- Compile C++ helper functions ----------
@@ -193,118 +254,56 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
 
     output = ROOT.TFile(output_path, "RECREATE")
     
+    # Master list to collect all execution nodes
+    all_hist_pointers = []
+    reports = {}
+    # --- Optional :No selection histograms
+    if args.add_no_selection:
+        output.cd() # Ensure we are at the top level of the ROOT file
+        print("\nBooking no selection histograms (No Cuts, Top Directory)")
+        
+        # Book histograms directly on the base 'df' with no filters
+        baseline_pointers = book_histograms(df, hist_config)
+        # Store as a tuple: (Target Directory, Histogram Pointer)
+        all_hist_pointers.extend([("", ptr) for ptr in baseline_pointers])
+    
     # ---------- Region loop ----------
     for region_name, region_info in region_config.items():
         # Initialize a region_df having the initial df
         region_df = df 
-        print(f"\nApplying cuts for region: {region_name}\n")
-        cuts = region_info["cuts"]
+        print(f"\nBooking histograms for region: {region_name}\n")
+        cuts = region_info.get("cuts", []) # Doing it like this so if we want we can completely skip the cuts
         # Apply cuts from regions definitions sequentially 
         for selection in cuts:
             region_df = region_df.Filter(selection, selection)
+        
+        # Save the report pointer to print later
+        reports[region_name] = region_df.Report()
 
         output.mkdir(region_name)
         output.cd(region_name)
         
-        # Make Histograms/Profiles
-        hist_pointers = []
-        for hist_name, hist_info in hist_config.items():
-            title = hist_info["title"]
-            hist_type = hist_info.get("type", "TH1D")
-
-            # ------------------------------------
-            # Standard 1D Histogram (TH1D)
-            # ------------------------------------
-            if hist_type == "TH1D":
-                variable = hist_info["variable"]
-                if "edges" in hist_info:
-                    if hist_info["edges"][0]=="bins":
-                        edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
-                    else:
-                        edges = np.array(hist_info["edges"], dtype=np.float64)
-                    model = (hist_name, title, len(edges)-1, edges)
-                else:
-                    bins = hist_info["bins"]
-                    model = (hist_name, title, bins[0], bins[1], bins[2])
-                hist = region_df.Histo1D(model, variable)
-                hist_pointers.append(hist)
-
-            # ------------------------------------
-            # 1D Profile (TProfile)
-            # ------------------------------------
-            elif hist_type in ["TProfile", "Profile1D"]:
-                var_x = hist_info["variable_x"]
-                var_y = hist_info["variable_y"] # The variable being averaged!
-                if "edges" in hist_info:
-                    if hist_info["edges"][0]=="bins":
-                        edges = np.linspace(hist_info["edges"][2], hist_info["edges"][3], hist_info["edges"][1])
-                    else:
-                        edges = np.array(hist_info["edges"], dtype=np.float64)
-                    model = (hist_name, title, len(edges)-1, edges)
-                else:
-                    bins = hist_info["bins"]
-                    model = (hist_name, title, bins[0], bins[1], bins[2])
-                hist = region_df.Profile1D(model, var_x, var_y)
-                hist_pointers.append(hist)
-
-            # ------------------------------------
-            # Standard 2D Histogram (TH2D)
-            # ------------------------------------
-            elif hist_type == "TH2D":
-                var_x = hist_info["variable_x"]
-                var_y = hist_info["variable_y"]
-                if "edges_x" in hist_info and "edges_y" in hist_info:
-                    if hist_info["edges_x"][0]=="bins":
-                        edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
-                    else:
-                        edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
-                    if hist_info["edges_y"][0]=="bins":
-                        edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
-                    else:
-                        edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
-                    model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
-                else:
-                    bins = hist_info["bins"]
-                    model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
-                hist = region_df.Histo2D(model, var_x, var_y)
-                hist_pointers.append(hist)
-
-            # ------------------------------------
-            # 2D Profile (TProfile2D)
-            # ------------------------------------
-            elif hist_type in ["TProfile2D", "Profile2D"]:
-                var_x = hist_info["variable_x"]
-                var_y = hist_info["variable_y"]
-                var_z = hist_info["variable_z"] # The variable being averaged!
-                if "edges_x" in hist_info and "edges_y" in hist_info:
-                    if hist_info["edges_x"][0]=="bins":
-                        edges_x = np.linspace(hist_info["edges_x"][2], hist_info["edges_x"][3], hist_info["edges_x"][1])
-                    else:
-                        edges_x = np.array(hist_info["edges_x"], dtype=np.float64)
-                    if hist_info["edges_y"][0]=="bins":
-                        edges_y = np.linspace(hist_info["edges_y"][2], hist_info["edges_y"][3], hist_info["edges_y"][1])
-                    else:
-                        edges_y = np.array(hist_info["edges_y"], dtype=np.float64)
-                    model = (hist_name, title, len(edges_x)-1, edges_x, len(edges_y)-1, edges_y)
-                else:
-                    bins = hist_info["bins"]
-                    model = (hist_name, title, bins[0], bins[1], bins[2], bins[3], bins[4], bins[5])
-                hist = region_df.Profile2D(model, var_x, var_y, var_z)
-                hist_pointers.append(hist)
-                
-            else:
-                print(f"WARNING: Unknown histogram type '{hist_type}' for '{hist_name}'. Skipping.")
-
-        # Trigger the event loop once and write all histograms
-        for hist in hist_pointers:
-            hist.Write()
-        print('Cuts report:')
-        # Print cuts report
-        region_df.Report().Print()
+        # Book histograms on the filtered region_df
+        region_pointers = book_histograms(region_df, hist_config)
+        # Store as a tuple: (Target Directory, Histogram Pointer)
+        all_hist_pointers.extend([(region_name, ptr) for ptr in region_pointers])
         
-        output.cd()
+    print("\nExecuting RDataFrame Graph...")
     
+    for target_dir, hist in all_hist_pointers:
+        # Change directory before writing
+        if target_dir == "":
+            output.cd()             # Go to the top level for baseline
+        else:
+            output.cd(target_dir)   # Go to the specific region folder
+            
+        hist.Write() # Evaluates the whole graph at once on the first call
+        
+    for reg, rep in reports.items():
+        print(f"\n--- Cuts report for {reg} ---")
+        rep.Print()
+        
     output.Close()
-    print(f"Output written: {output_path}")
+    print(f"\nOutput written: {output_path}")
 
 print(f"\nTotal runtime: {time.time() - t0:.2f} seconds")
