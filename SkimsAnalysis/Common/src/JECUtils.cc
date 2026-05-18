@@ -42,19 +42,19 @@ float getJEC(float area, float eta, float phi, float pt , float rho) {
         // Note: You must ensure these string names exactly match what your JSON uses!
         // Standard CMS conventions are usually "JetEta", "JetPt", "Rho", "JetA", etc.
         if (name == "JetEta" || name == "eta") {
-            args.push_back(static_cast<double>(eta));
+            args.push_back(static_cast<float>(eta));
         } 
         else if (name == "JetPt" || name == "pt") {
-            args.push_back(static_cast<double>(pt));
+            args.push_back(static_cast<float>(pt));
         } 
         else if (name == "JetA" || name == "area") {
-            args.push_back(static_cast<double>(area));
+            args.push_back(static_cast<float>(area));
         } 
         else if (name == "Rho" || name == "rho") {
-            args.push_back(static_cast<double>(rho));
+            args.push_back(static_cast<float>(rho));
         } 
         else if (name == "JetPhi" || name == "phi") {
-            args.push_back(static_cast<double>(phi));
+            args.push_back(static_cast<float>(phi));
         } 
         else {
             std::cerr << "[CRITICAL ERROR]: Unknown JEC input parameter requested by JSON: " << name << std::endl;
