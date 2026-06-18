@@ -309,9 +309,9 @@ if __name__ == "__main__":
         inputs=[
             schema.Variable(name="JetA", type="real", description="Jet Area"),
             schema.Variable(name="JetEta", type="real", description="Jet Eta"),
-            schema.Variable(name="JetPhi", type="real", description="Jet Phi"),
             schema.Variable(name="JetPt", type="real", description="Jet Pt"),
-            schema.Variable(name="Rho", type="real", description="Event Rho")
+            schema.Variable(name="Rho", type="real", description="Event Rho"),
+            schema.Variable(name="JetPhi", type="real", description="Jet Phi"),
         ],
         
         inputs_update=["JetPt"], 

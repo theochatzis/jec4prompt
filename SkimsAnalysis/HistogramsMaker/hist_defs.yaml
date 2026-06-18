@@ -28,6 +28,16 @@ Probe_pt:
   bins: [50, 30, 200]
   variable: "Probe_pt"
 
+Probe_rawPt:
+  title: "Probe raw pT; Probe p^{raw}_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "Probe_rawPt"
+
+Probe_corPt:
+  title: "Corrected Probe pT; Probe p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "Probe_corPt"
+
 Probe_eta:
   title: "Probe Eta; Probe #eta; Events"
   bins: [30, -3, 3]
@@ -43,15 +53,91 @@ Probe_mass:
   bins: [30, 0, 50]
   variable: "Probe_mass"
 
+Probe_jec:
+  title: "Probe Jet Energy Correction; Probe JEC factor; Events"
+  bins: [100, 0.5, 2.0]
+  variable: "Probe_jec"
+
+# Type1 MET
+T1MET_pt:
+  title: "T1MET pT; T1MET p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "T1MET_pt"
+
+T1MET_phi:
+  title: "T1MET Phi; T1MET #phi; Events"
+  bins: [30, -3.15, 3.15]
+  variable: "T1MET_phi"
+
+T1MET_corPt:
+  title: "T1MET pT; T1MET p_{T} [GeV]; Events"
+  bins: [50, 30, 200]
+  variable: "T1MET_corPt"
+
+T1MET_corPhi:
+  title: "T1MET Phi; T1MET #phi; Events"
+  bins: [30, -3.15, 3.15]
+  variable: "T1MET_corPhi"
+
+
 #======================
 # 1D Profiles
 #======================
+Probe_jec_Tag_pt:
+  type: "TProfile"
+  title: "Probe JEC vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; Probe JEC"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "Probe_jec"
+
+Probe_corDB_Tag_pt:
+  type: "TProfile"
+  title: "Corrected DB vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; DB"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "Probe_corDB"
+
 MPF_tag_Tag_pt:
   type: "TProfile"
   title: "Response vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
   edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
   variable_x: "Tag_pt"
   variable_y: "MPF_tag"
+
+corMPF_Tag_pt:
+  type: "TProfile"
+  title: "Response vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "corMPF"
+
+HDM_r0_Tag_pt:
+  type: "TProfile"
+  title: "HDM r0 vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "HDM_r0"
+
+HDM_r1_Tag_pt:
+  type: "TProfile"
+  title: "HDM r1 vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "HDM_r1"
+
+HDM_rn_Tag_pt:
+  type: "TProfile"
+  title: "HDM rn vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "HDM_rn"
+
+HDM_ru_Tag_pt:
+  type: "TProfile"
+  title: "HDM r0 vs tag p^{tag}_{T} [GeV]; p^{tag}_{T} [GeV]; MPF"
+  edges: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000, 7000 ]
+  variable_x: "Tag_pt"
+  variable_y: "HDM_ru"
 #======================
 # 2D Histograms
 #======================
@@ -63,6 +149,7 @@ Probe_eta_Tag_pt:
   variable_x: "Probe_eta"
   variable_y: "Tag_pt"
 
+
 #======================
 # 2D Profiles
 #======================
@@ -70,7 +157,91 @@ MPF_2D:
   type: "TProfile2D"
   title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
   edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "MPF_mc" #"MPF_tag"
+
+MPFx_2D:
+  type: "TProfile2D"
+  title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
   edges_y: ["bins",5000,20,7000]
   variable_x: "Probe_eta"
   variable_y: "Tag_pt"
-  variable_z: "MPF_tag"
+  variable_z: "MPFx_tag"
+
+corMPF_2D:
+  type: "TProfile2D"
+  title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "corMPF"
+
+DB_2D:
+  type: "TProfile2D"
+  title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] # ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "DB_mc" #"DB_direct"
+
+corDB_2D:
+  type: "TProfile2D"
+  title: "Response #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "Probe_corDB"
+
+# HDM inputs
+HDM_r0_2D:
+  type: "TProfile2D"
+  title: "HDM r0 #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "HDM_r0"
+
+HDM_r1_2D:
+  type: "TProfile2D"
+  title: "HDM r1 #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "HDM_r1"
+
+HDM_rn_2D:
+  type: "TProfile2D"
+  title: "HDM rn #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "HDM_rn"
+
+HDM_ru_2D:
+  type: "TProfile2D"
+  title: "HDM ru #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: [ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #[ 20, 28, 40, 44, 49, 56, 64, 74, 84, 97, 114, 133, 153, 174, 220, 300, 430, 638, 1032, 2000] #["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "HDM_ru"
+
+HDM_MPD_diff_2D:
+  type: "TProfile2D"
+  title: "HDM_MPD_diff #eta^{probe} vs tag p^{tag}_{T} [GeV]; #eta^{probe} ; p^{tag}_{T} [GeV]; MPF"
+  edges_x: [ -5.191, -3.839, -3.489, -3.139, -2.964, -2.853, -2.650, -2.500, -2.322, -2.172, -1.930, -1.653, -1.479, -1.305, -1.044, -0.783, -0.522, -0.261, 0.0, 0.261, 0.522, 0.783, 1.044, 1.305, 1.479, 1.653, 1.930, 2.172, 2.322, 2.500, 2.650, 2.853, 2.964, 3.139, 3.489, 3.839, 5.191 ]
+  edges_y: ["bins",5000,20,7000]
+  variable_x: "Probe_eta"
+  variable_y: "Tag_pt"
+  variable_z: "HDM_MPD_diff"
+
+
