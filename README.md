@@ -49,7 +49,12 @@ The rest of the parameters are optional and there are baseline values in `consta
 - `l3abs_txtPath (string)`: The path to the txt file with L3Absolute corrections. By default the dummy txt file is used.
 - `outputJsonPath (string)`: The path where the `j4pjerc.json` is saved.
 
-
+Can run with python instead through `run_L2L3Res.py` executable:
+e.g.
+```bash
+./run_L2L3Res.py --run 398027 --channel photonjet
+```
+can find the above in `./run_L2L3Res.py --help`
 
 ## Making Closure plots
 - Add checks of corrections and closures.

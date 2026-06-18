@@ -142,13 +142,13 @@ void DrawClosures(
   // ----------------------------------------
   // LOAD MPF AND DB JES MEASURES
   // ----------------------------------------
-  TProfile2D *p2_MPF = (TProfile2D*)f->Get("photonjet/MPF_2D"); assert(p2_MPF);
+  TProfile2D *p2_MPF = (TProfile2D*)f->Get("photonjet/corMPF_2D"); assert(p2_MPF);
   p2_MPF->SetName("p2_MPF");
   TProfile2D *p2_MPF_MC = (TProfile2D*)fm->Get(profileName.c_str()); assert(p2_MPF_MC);
   p2_MPF_MC->SetName("p2_MPF_MC");
 
 
-  TProfile2D *p2_DB = (TProfile2D*)f->Get("photonjet/DB_2D"); assert(p2_DB);
+  TProfile2D *p2_DB = (TProfile2D*)f->Get("photonjet/corDB_2D"); assert(p2_DB);
   p2_DB->SetName("p2_DB");
   TProfile2D *p2_DB_MC = (TProfile2D*)fm->Get(profileNameDB.c_str()); assert(p2_DB_MC);
   p2_DB_MC->SetName("p2_DB_MC");

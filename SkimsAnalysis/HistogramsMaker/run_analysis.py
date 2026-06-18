@@ -220,13 +220,16 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
     df = df.Define("Tag_PolarVec" , "ROOT::Math::Polar2DVector(Tag_pt, Tag_phi)")
 
     # Probe 
+    df = df.Define("ProbeMC_PolarVec", "ROOT::Math::Polar2DVector(Probe_mcPt, Probe_phi)")
+    df = df.Define("Probe_PolarVec", "ROOT::Math::Polar2DVector(Probe_pt, Probe_phi)")
     df = df.Define("Probe_jec", "getJEC(Probe_area, Probe_eta, Probe_phi, Probe_pt, Rho_fixedGridRhoFastjetAll)")
     df = df.Define("Probe_corPt" , "Probe_jec*Probe_pt")
     df = df.Define("Probe_corDB", "Probe_corPt/Tag_pt")
     df = df.Define("Probe_corPolarVec", "ROOT::Math::Polar2DVector(Probe_corPt, Probe_phi)")
 
     # Re-Apply correction of Probe Jet to MET
-    df = df.Define("corMETvec", "getCorrectedMET(PuppiMET_pt, PuppiMET_phi, Probe_pt, Probe_corPt, Probe_phi)")
+    df = df.Define("MET_polarVec", "ROOT::Math::Polar2DVector(T1MET_mc_pt, T1MET_mc_phi)")
+    df = df.Define("corMETvec", "getCorrectedMET(T1MET_pt, PuppiMET_phi, Probe_pt, Probe_corPt, Probe_phi)")
     df = df.Define("T1MET_corPt", "corMETvec.Pt()")
     df = df.Define("T1MET_corPhi", "corMETvec.Phi()")
     df = df.Define("T1MET_corPolarVec", "ROOT::Math::Polar2DVector(T1MET_corPt, T1MET_corPhi)")
@@ -234,6 +237,44 @@ for subdir in tqdm(subdirs, desc="Processing samples"):
 
     # Make corrected MPF
     df = df.Define("corMPF", "1 + T1MET_corPolarVec.Dot(Tag_PolarVec)/Tag_PolarVec.Mag2()")
+    
+    # MC based definitions
+    df = df.Define("MPF_mc", "1 + MET_polarVec.Dot(Tag_PolarVec)/Tag_PolarVec.Mag2()")
+    df = df.Define("DB_mc", "ProbeMC_PolarVec.R()/Tag_PolarVec.R()")
+    
+    # Define HDM inputs
+
+    #### Temporary fix for JetActivity: ## Note: Here JetActivity also has residuals
+    df = df.Define("JetActivity_PolarVec", "ROOT::Math::Polar2DVector(JetActivity_pt, JetActivity_phi)")
+    # Define unclustered component -> add to MET all the jets
+    df = df.Define("Unclustered_PolarVec", "MET_polarVec + JetActivity_PolarVec") 
+    df = df.Redefine("JetActivity_PolarVec", "JetActivity_PolarVec + Probe_PolarVec")
+    ####
+
+    df = (
+    df
+    .Define(
+        "HDM_r0",
+        "hdm_r0(Tag_pt, Tag_phi, MET_polarVec.R(), MET_polarVec.Phi())"
+    )
+    .Define(
+        "HDM_r1",
+        "hdm_r1(Tag_pt, Tag_phi, ProbeMC_PolarVec.R(), ProbeMC_PolarVec.Phi())"
+    )
+    .Define(
+        "HDM_rn",
+        "hdm_rn_from_scalar(Tag_pt, Tag_phi, JetActivity_PolarVec.R(), JetActivity_PolarVec.Phi())"
+        #"hdm_rn_from_scalar(Tag_pt, Tag_phi, JetActivity_pt, JetActivity_phi)"
+    )
+    .Define(
+        "HDM_ru",
+        "hdm_rn_from_scalar(Tag_pt, Tag_phi, Unclustered_PolarVec.R(), Unclustered_PolarVec.Phi())"
+    )
+    .Define(
+        "HDM_MPD_diff",
+        "hdm_closure(HDM_r0, HDM_r1, HDM_rn, HDM_ru)"
+    )
+    )
 
     # ---------- Create output file ----------
     os.makedirs(args.output_dir, exist_ok=True)
